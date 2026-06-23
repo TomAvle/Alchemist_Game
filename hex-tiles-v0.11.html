@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>アルケミスト v0.11</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e0a06; --panel:#1b150d; --panel2:#251d12;
+    --ink:#e9e0cb; --muted:#94a0b2; --gold:#d9a441; --gold-soft:#e9c277;
+    --gold-dim:#7c6330; --line:rgba(217,164,65,.16); --danger:#e0795a; --good:#6fc28b;
+    --relic:#b083e6; --relic-dim:#5a3e80;
+    --rN:#8b96a8; --rU:#5fa3e0; --rR:#e9c277;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%;}
+  body{
+    background:
+      radial-gradient(1200px 700px at 50% -10%, #2c1f12 0%, rgba(44,31,18,0) 60%),
+      radial-gradient(900px 500px at 100% 110%, #1d150d 0%, rgba(29,21,13,0) 55%), var(--bg);
+    color:var(--ink); font-family:"Noto Sans JP",-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;
+    overflow:hidden; display:flex; flex-direction:column; height:100dvh; user-select:none;
+  }
+  .num{font-family:"Cormorant Garamond",serif; font-variant-numeric:lining-nums;}
+  .muted{color:var(--muted);}
+
+  header{flex:0 0 auto; padding:9px 12px 8px; display:flex; align-items:center; gap:8px;
+    border-bottom:1px solid var(--line); background:linear-gradient(180deg, rgba(20,28,42,.7), rgba(20,28,42,0));}
+  .brand{display:flex; flex-direction:column; line-height:1; margin-right:auto;}
+  .brand .ttl{font-weight:700; font-size:13px; letter-spacing:.1em;}
+  .brand .stg{font-size:9px; letter-spacing:.3em; color:var(--gold-soft); margin-top:3px;}
+  .coins{display:flex; align-items:center; gap:5px; font-size:16px; font-weight:600; background:rgba(217,164,65,.1);
+    border:1px solid var(--gold-dim); color:var(--gold-soft); padding:4px 9px; border-radius:20px;}
+  .coins .c{font-size:13px;}
+  .prog{display:flex; flex-direction:column; align-items:flex-end; line-height:1;}
+  .prog .lab{font-size:8px; letter-spacing:.14em; color:var(--muted);}
+  .prog .v{font-size:15px; font-weight:600; margin-top:3px;}
+  .prog .v .s{font-size:22px; color:var(--gold);} .prog .v .s.hit{color:var(--good);}
+  .icon-btn{background:var(--panel); border:1px solid var(--line); color:var(--ink); width:32px; height:32px;
+    border-radius:9px; font-size:14px; cursor:pointer; display:grid; place-items:center;}
+  .icon-btn:active{transform:scale(.94);}
+  body[data-phase="intro"] #deckBtn{display:none;}
+
+  main{flex:1 1 auto; position:relative; display:grid; place-items:center; min-height:0; padding:4px;}
+  main::before{content:"";position:absolute;width:min(82vw,470px);height:min(82vw,470px);border:1px solid rgba(217,164,65,.13);border-radius:50%;pointer-events:none;}
+  main::after{content:"";position:absolute;width:min(64vw,366px);height:min(64vw,366px);border:1px dashed rgba(217,164,65,.09);border-radius:50%;pointer-events:none;}
+  #board{width:100%; height:100%; max-width:560px; touch-action:manipulation;}
+  .hex-empty{fill:#161f2d; stroke:var(--line); stroke-width:1.4; transition:fill .18s, stroke .18s;}
+  .hexgroup.place{cursor:pointer;}
+  .hexgroup.target .hex-empty{stroke:var(--gold); stroke-width:2.2; fill:#1d2a3d; filter:drop-shadow(0 0 6px rgba(217,164,65,.45));}
+  .hex-blocked{fill:#0e141d; stroke:rgba(224,121,90,.45); stroke-width:1.5; stroke-dasharray:4 3;}
+  .hex-x{fill:rgba(224,121,90,.6); font-size:17px; text-anchor:middle; pointer-events:none; font-weight:700;}
+  .hex-tile{stroke:rgba(0,0,0,.35); stroke-width:1.4;}
+  .hex-gloss{fill:rgba(255,255,255,.10); pointer-events:none;}
+  .hex-emoji{font-size:15px; text-anchor:middle; pointer-events:none;}
+  .hex-val{font-family:"Cormorant Garamond",serif; font-weight:700; text-anchor:middle; fill:#fff; font-size:19px;
+    pointer-events:none; paint-order:stroke; stroke:rgba(0,0,0,.45); stroke-width:2.4px;}
+  .hex-val.up{fill:#d7ffe4;} .hex-val.down{fill:#ffd9cc;}
+  @keyframes pop{0%{transform:scale(.4);opacity:0;}60%{transform:scale(1.12);}100%{transform:scale(1);opacity:1;}}
+  .placed{animation:pop .3s cubic-bezier(.2,1.3,.5,1) both; transform-origin:center; transform-box:fill-box;}
+
+  #modBtn{position:absolute; top:8px; left:8px; width:40px; height:40px; border-radius:11px;
+    background:rgba(18,25,37,.92); border:1px solid var(--line); font-size:18px; display:grid; place-items:center; cursor:pointer;}
+  #modBtn.trial{border-color:var(--danger); box-shadow:0 0 0 2px rgba(224,121,90,.2);}
+  #modBtn .badge{position:absolute; top:-6px; right:-6px; background:var(--danger); color:#1a0d09; font-size:10px;
+    font-weight:700; min-width:16px; height:16px; padding:0 3px; border-radius:8px; display:grid; place-items:center; font-family:inherit;}
+  #clearBtn{position:absolute; right:10px; bottom:10px; background:linear-gradient(180deg,var(--good),#4ea876);
+    color:#0c2417; font-weight:700; border:none; border-radius:13px; padding:9px 14px; font-family:inherit;
+    font-size:12.5px; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,.4); animation:rise .25s ease both;}
+  @keyframes rise{from{transform:translateY(8px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  #clearBtn[hidden]{display:none;}
+
+  .tray{flex:0 0 auto; border-top:1px solid var(--line); background:linear-gradient(0deg, rgba(16,22,33,.95), rgba(16,22,33,.55));
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));}
+  .tray-top{display:flex; align-items:center; gap:8px; margin:0 2px 7px;}
+  .hint{font-size:11.5px; color:var(--muted); margin-right:auto;} .hint b{color:var(--gold-soft); font-weight:500;}
+  @keyframes dealIn{0%{opacity:0; transform:translateY(16px) scale(.88);} 60%{opacity:1;} 100%{opacity:1; transform:none;}}
+  .card.deal{animation:dealIn .34s cubic-bezier(.2,.9,.3,1.2) both;}
+  @keyframes dealOut{0%{opacity:1; transform:none;} 100%{opacity:0; transform:translateY(-14px) scale(.85);}}
+  .card.leave{animation:dealOut .22s ease-in forwards; pointer-events:none;}
+  .rewardnote{text-align:center; font-size:12px; color:var(--muted); margin:-2px 0 12px;} .rewardnote b{color:var(--gold-soft);}
+  .histlist{display:flex; flex-direction:column; gap:5px; margin:6px 0 4px;}
+  .histrow{display:flex; align-items:center; gap:8px; background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:7px 10px; font-size:12.5px;}
+  .histrow .hn{flex:0 0 auto; color:var(--muted); font-size:11px; min-width:42px;}
+  .histrow .hl{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .histrow .he{margin-right:4px;}
+  .histrow .ht{flex:0 0 auto; font-size:11px; display:flex; align-items:center; gap:6px;}
+  .histrow .ht .num{color:var(--muted);}
+  .histrow .ht.ok{color:#8fe7ad;} .histrow .ht.ng{color:#ff9d80;}
+  .reroll{background:var(--panel2); border:1px solid var(--line); color:var(--ink); font-size:11px; padding:6px 10px;
+    border-radius:8px; cursor:pointer; white-space:nowrap; font-family:inherit;}
+  .reroll:disabled{opacity:.38;} .reroll:active:not(:disabled){transform:scale(.96);}
+  .placechip{font-size:11px; color:var(--gold-soft); background:rgba(217,164,65,.1); border:1px solid var(--gold-dim); border-radius:8px; padding:6px 9px; white-space:nowrap;}
+  .placechip .num{font-size:13px; font-weight:700;}
+  .hand{display:flex; gap:7px; justify-content:center; align-items:stretch;}
+
+  .card{position:relative; flex:1 1 0; min-width:0; max-width:116px; background:linear-gradient(170deg,#222d3f,#161e2b);
+    border:1px solid var(--line); border-radius:12px; padding:7px 7px 8px; cursor:pointer; overflow:hidden;
+    transition:transform .14s, box-shadow .14s, border-color .14s; display:flex; flex-direction:column; gap:4px;}
+  .card:active{transform:translateY(1px);}
+  .card.sel{border-color:var(--gold); box-shadow:0 -2px 0 0 var(--gold), 0 10px 22px rgba(0,0,0,.45); transform:translateY(-8px);}
+  .card .band{height:4px; border-radius:3px; margin:-1px -1px 1px;}
+  .card .top{display:flex; align-items:center; gap:5px;}
+  .card .emoji{font-size:17px; line-height:1;}
+  .card .rar{width:7px; height:7px; border-radius:50%; flex:0 0 auto;}
+  .rar-normal{background:var(--rN);} .rar-uncommon{background:var(--rU);} .rar-rare{background:var(--rR); box-shadow:0 0 5px var(--rR);}
+  .rar-impurity{background:#6e5b3a; box-shadow:0 0 5px #3a2e18;}
+  .rr-basic{border-color:#566273 !important;}
+  .rr-normal{border-color:#6f8bb0 !important;}
+  .rr-uncommon{border-color:#4ea1e6 !important; box-shadow:0 0 0 1px rgba(78,161,230,.20);}
+  .rr-rare{border-color:#e9c277 !important; box-shadow:0 0 0 1px rgba(233,194,119,.32), 0 0 9px rgba(233,194,119,.20);}
+  .rr-impurity{border-color:#8a6f3e !important;}
+  .elchip{display:inline-block; font-size:9px; font-weight:800; color:#1a1206; padding:0 5px; border-radius:7px; line-height:15px; vertical-align:middle; flex:0 0 auto; letter-spacing:.5px;}
+  .elname{font-weight:800;}
+  .pupill{display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:18px; padding:0 6px; border-radius:9px; background:rgba(217,164,65,.16); color:var(--gold-soft); font-weight:800; font-size:11px; vertical-align:middle;}
+  .rb-basic{color:#9aa6b4; border:1px solid #4a5564;}
+  .rar-basic{background:#7c8696;}
+  .rb-impurity{color:#b89b66; border:1px solid #6e5b3a;}
+  .rmbtn{display:flex; align-items:center; justify-content:center; gap:6px;}
+  .rmlist{display:flex; flex-direction:column; gap:7px;}
+  .rmrow{display:flex; gap:10px; align-items:center; background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:11px; padding:8px 10px;}
+  .rmrow.imp{border-color:#6e5b3a; background:rgba(110,91,58,.12);}
+  .rmrow .rmem{font-size:19px;} .rmrow .rmnm{font-size:12.5px; font-weight:700;} .rmrow .rmct{font-size:11px; color:var(--muted);}
+  .rmrow .rmx{margin-left:auto; background:rgba(224,121,90,.12); border:1px solid var(--danger); color:var(--danger); border-radius:9px; padding:7px 11px; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;}
+  .rmrow .rmx:disabled{opacity:.4;} .rmrow .rmx:active:not(:disabled){transform:scale(.95);}
+  .hexaff{fill:none; stroke-width:2.6; pointer-events:none;}
+  .hexaff.buff{stroke:rgba(111,194,139,.85); filter:drop-shadow(0 0 4px rgba(111,194,139,.55));}
+  .hexaff.debuff{stroke:rgba(224,121,90,.9); filter:drop-shadow(0 0 4px rgba(224,121,90,.55));}
+  .deltafx{font-weight:800; font-size:18px; text-anchor:middle; paint-order:stroke; stroke:rgba(0,0,0,.6); stroke-width:3px; pointer-events:none; animation:deltaPop 1s ease-out forwards;}
+  .deltafx.pos{fill:#8fe7ad;} .deltafx.neg{fill:#ff9d80;}
+  @keyframes deltaPop{0%{opacity:0; transform:translateY(8px);} 18%{opacity:1;} 100%{opacity:0; transform:translateY(-16px);}}
+  .card .coin{margin-left:auto; min-width:23px; height:23px; padding:0 5px; border-radius:12px; background:rgba(217,164,65,.14);
+    border:1px solid var(--gold-dim); color:var(--gold-soft); display:grid; place-items:center; font-size:14px; font-weight:700;}
+  .card .name{font-size:11.5px; font-weight:700; line-height:1.15;}
+  .card .desc{font-size:9.7px; line-height:1.3; color:var(--muted);}
+
+  .b-red{background:linear-gradient(90deg,#f0795a,#c2462f);} .b-blue{background:linear-gradient(90deg,#5fa3e0,#2f6fb0);}
+  .b-green{background:linear-gradient(90deg,#67c389,#3f8f5c);} .b-purple{background:linear-gradient(90deg,#b083e6,#7a4fb0);}
+  .b-yellow{background:linear-gradient(90deg,#f0d066,#c9a02f);} .b-gray{background:linear-gradient(90deg,#8b96a8,#5b6473);}
+
+  .overlay{position:fixed; inset:0; z-index:20; display:none; overflow-y:auto;
+    background:radial-gradient(900px 600px at 50% 0%, #16223a 0%, #0c111a 70%); padding:22px 18px calc(22px + env(safe-area-inset-bottom));}
+  .overlay.on{display:block;}
+  .wrap{max-width:480px; margin:0 auto; min-height:100%; display:flex; flex-direction:column;}
+  .peekrow{display:flex; justify-content:center; margin-bottom:14px;}
+  .deckpeek{background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:20px; padding:7px 14px;
+    font-family:inherit; font-size:12px; cursor:pointer;}
+  .deckpeek:active{transform:scale(.97);}
+  .eyebrow{font-size:10px; letter-spacing:.32em; color:var(--gold-soft); text-transform:uppercase; text-align:center;}
+  .eyebrow.t{color:var(--danger);}
+  .htitle{font-size:24px; font-weight:700; letter-spacing:.04em; text-align:center; margin:6px 0 4px;}
+  .hsub{font-size:12.5px; color:var(--muted); text-align:center; line-height:1.6; margin-bottom:18px;}
+  .seclabel{font-size:10px; letter-spacing:.22em; color:var(--gold-soft); text-transform:uppercase; margin:4px 2px 9px; display:flex; align-items:center; gap:8px;}
+  .seclabel::after{content:''; flex:1; height:1px; background:var(--line);}
+  .seclabel.rel{color:var(--relic);} .seclabel.rel::after{background:rgba(176,131,230,.22);}
+
+  .opts{display:flex; flex-direction:column; gap:12px;}
+  .opt{background:linear-gradient(165deg,#1f2a3b,#141c29); border:1px solid var(--line); border-radius:16px; padding:15px 16px;
+    cursor:pointer; display:flex; align-items:center; gap:14px; transition:transform .12s, border-color .12s;}
+  .opt:active{transform:scale(.98);} .opt:hover{border-color:var(--gold-dim);}
+  .opt .em{font-size:30px; flex:0 0 auto; width:42px; text-align:center;}
+  .opt .body{flex:1 1 auto; min-width:0;}
+  .opt .nm{font-size:15px; font-weight:700;} .opt .ds{font-size:11.5px; color:var(--muted); line-height:1.45; margin-top:3px;}
+  .opt .tg{flex:0 0 auto; text-align:center;}
+  .opt .tg .n{font-family:"Cormorant Garamond",serif; font-size:30px; font-weight:700; color:var(--gold); line-height:.9;}
+  .opt .tg .l{font-size:8.5px; letter-spacing:.16em; color:var(--muted);}
+
+  .trialcard{background:linear-gradient(165deg,#2a1e22,#17121a); border:1px solid var(--danger); border-radius:18px; padding:18px; cursor:pointer; transition:transform .12s;}
+  .trialcard:active{transform:scale(.98);}
+  .trialcard .th{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+  .trialcard .th .tt{font-size:17px; font-weight:700; display:flex; align-items:center; gap:8px;}
+  .trialcard .th .tg{text-align:center;} .trialcard .th .tg .n{font-family:"Cormorant Garamond",serif; font-size:28px; font-weight:700; color:var(--gold); line-height:.9;} .trialcard .th .tg .l{font-size:8px; letter-spacing:.16em; color:var(--muted);}
+  .deb{display:flex; gap:10px; align-items:flex-start; padding:9px 0; border-top:1px solid rgba(224,121,90,.18);}
+  .deb .e{font-size:20px;} .deb b{font-size:13px;} .deb .ds{font-size:11px; color:var(--muted); line-height:1.4; margin-top:2px;}
+  .deb.ok{border-top-color:rgba(217,164,65,.18);} .deb.ok .e{filter:none;}
+  .dtag{font-size:9px; color:var(--danger); border:1px solid var(--danger); border-radius:8px; padding:0 5px; margin-left:6px; vertical-align:middle;}
+  .trialreward{margin-top:12px; font-size:11.5px; color:var(--relic); background:rgba(176,131,230,.1); border:1px solid var(--relic-dim); border-radius:10px; padding:9px 11px; text-align:center;}
+
+  .recap{background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:16px;}
+  .recap .row{display:flex; justify-content:space-between; font-size:13px; padding:5px 0; color:var(--muted);}
+  .recap .row b{color:var(--ink); font-weight:500;} .recap .row .pos{color:var(--good);} .recap .row .neg{color:var(--danger);}
+  .recap .grand{border-top:1px solid var(--line); margin-top:6px; padding-top:11px; font-size:15px; color:var(--ink);}
+  .recap .grand .n{font-family:"Cormorant Garamond",serif; font-size:30px; font-weight:700; color:var(--gold);}
+
+  .relchoice{display:flex; flex-direction:column; gap:11px; margin-bottom:16px;}
+  .relpick{display:flex; gap:12px; align-items:center; background:linear-gradient(165deg,#241f3b,#16121f); border:1px solid var(--relic-dim);
+    border-radius:14px; padding:12px 13px; cursor:pointer; transition:transform .12s, border-color .12s;}
+  .relpick:active{transform:scale(.98);} .relpick:hover{border-color:var(--relic);}
+  .relpick .mini{flex:0 0 auto; width:46px; height:46px; border-radius:11px; display:grid; place-items:center; font-size:24px;
+    background:radial-gradient(circle at 38% 28%, #b083e6, #5a3e80); border:1px solid var(--relic-dim);}
+  .relpick .info .nm{font-size:14px; font-weight:700;} .relpick .info .ds{font-size:10.5px; color:var(--muted); line-height:1.35; margin-top:3px;}
+
+  .shopgrid{display:flex; flex-direction:column; gap:10px; margin-bottom:14px;}
+  .shopitem{display:flex; gap:12px; align-items:center; background:linear-gradient(165deg,#1f2a3b,#141c29); border:1px solid var(--line); border-radius:14px; padding:11px 13px;}
+  .shopitem.sold{opacity:.4;}
+  .shopitem .mini{flex:0 0 auto; width:46px; height:46px; border-radius:11px; display:grid; place-items:center; font-size:24px; border:1px solid rgba(0,0,0,.3);}
+  .shopitem .info{flex:1 1 auto; min-width:0;}
+  .shopitem .info .nm{font-size:14px; font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .shopitem .info .nm .pt{font-size:10.5px; color:var(--gold-soft); background:rgba(217,164,65,.12); border:1px solid var(--gold-dim); border-radius:10px; padding:1px 7px;}
+  .shopitem .info .nm .rb{font-size:10px; border-radius:9px; padding:1px 7px; font-weight:700;}
+  .rb-normal{color:var(--rN); border:1px solid var(--rN);} .rb-uncommon{color:var(--rU); border:1px solid var(--rU);} .rb-rare{color:var(--rR); border:1px solid var(--rR);}
+  .shopitem .info .ds{font-size:10.5px; color:var(--muted); line-height:1.35; margin-top:3px;}
+  .buy{flex:0 0 auto; background:rgba(217,164,65,.12); border:1px solid var(--gold-dim); color:var(--gold-soft); border-radius:10px;
+    padding:9px 11px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; display:flex; flex-direction:column; align-items:center; line-height:1.1; min-width:54px;}
+  .buy .l{font-size:8px; letter-spacing:.1em; color:var(--muted); font-weight:400;}
+  .buy:disabled{opacity:.4;} .buy:active:not(:disabled){transform:scale(.95);}
+
+  .btnrow{display:flex; gap:10px; margin-top:auto;}
+  .btn{flex:1 1 0; padding:13px; border-radius:13px; border:1px solid var(--line); cursor:pointer; font-family:inherit; font-size:13.5px; font-weight:700; background:var(--panel2); color:var(--ink);}
+  .btn:active{transform:scale(.98);}
+  .btn.primary{border:none; background:linear-gradient(180deg,var(--gold-soft),var(--gold)); color:#241a06; letter-spacing:.03em;}
+  .btn.ghost{background:transparent;} .btn.wide{flex-basis:100%;}
+
+  .final{text-align:center; margin:10px 0;}
+  .final .n{font-family:"Cormorant Garamond",serif; font-size:76px; font-weight:700; color:var(--gold); line-height:.85; text-shadow:0 0 26px rgba(217,164,65,.4);}
+  .rankline{text-align:center; font-size:15px; margin:4px 0 16px;} .rankline b{color:var(--gold-soft);}
+
+  .scrim{position:fixed; inset:0; background:rgba(6,9,14,.66); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; padding:24px; z-index:40;}
+  .scrim.on{display:flex;}
+  .sheet{width:100%; max-width:360px; max-height:84vh; overflow-y:auto; background:linear-gradient(170deg,#1f2a3b,#151d2a);
+    border:1px solid var(--line); border-radius:18px; padding:18px; box-shadow:0 24px 60px rgba(0,0,0,.6);}
+  .sheet h2{margin:0 0 2px; font-size:18px; display:flex; align-items:center; gap:8px;}
+  .sheet h2 .em{font-size:22px;}
+  .sheet .tag{font-size:10.5px; color:var(--gold-soft); letter-spacing:.16em; margin-bottom:12px;}
+  .sheet .effect{font-size:13px; line-height:1.55; background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:10px; padding:11px 12px;}
+  .bd{margin-top:12px; display:flex; flex-direction:column; gap:5px; font-size:13px;}
+  .bd .row{display:flex; justify-content:space-between; color:var(--muted);} .bd .row b{color:var(--ink); font-weight:500;}
+  .bd .total{border-top:1px solid var(--line); margin-top:4px; padding-top:8px; font-size:15px; color:var(--ink);}
+  .bd .total .n{font-family:"Cormorant Garamond",serif; font-size:26px; font-weight:700; color:var(--gold);}
+  .pos{color:var(--good);} .neg{color:var(--danger);}
+  .sheet .close{margin-top:16px; width:100%; padding:11px; border-radius:11px; border:1px solid var(--line); background:var(--panel2); color:var(--ink); font-family:inherit; font-size:13px; cursor:pointer;}
+  .effrow{display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--line);}
+  .effrow:last-of-type{border-bottom:none;} .effrow .e{font-size:22px;}
+  .effrow b{font-size:13px;} .effrow .ds{font-size:11px; color:var(--muted); margin-top:2px; line-height:1.4;}
+  .help-body{font-size:12.5px; line-height:1.65;} .help-body p{margin:0 0 10px;} .help-body b{color:var(--gold-soft);}
+  .help-body ul{margin:0 0 10px; padding-left:18px;} .help-body li{margin-bottom:4px;}
+  .howlead{font-size:12.5px; line-height:1.6; color:var(--ink); margin:0 0 12px;} .howlead b{color:var(--gold-soft);}
+  .howsteps{display:flex; flex-direction:column; gap:11px;}
+  .howstep{background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:13px; padding:11px 12px 12px;}
+  .howstep .hh{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:800; color:var(--ink); margin-bottom:9px;}
+  .howstep .hh .num{display:inline-flex; align-items:center; justify-content:center; width:21px; height:21px; border-radius:50%; background:var(--gold); color:#1a1206; font-size:12px; font-weight:900; flex:0 0 auto;}
+  .howstep .fig{background:rgba(10,14,20,.4); border-radius:10px; padding:6px;}
+  .howstep .fig svg{display:block; width:100%; height:auto;}
+  .howstep .cap{font-size:11.5px; color:var(--muted); line-height:1.55; margin-top:8px;} .howstep .cap b{color:var(--gold-soft);}
+
+  .relrow{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 4px;}
+  .relchip{font-size:11px; background:rgba(176,131,230,.12); border:1px solid var(--relic-dim); color:var(--relic); border-radius:14px; padding:3px 9px;}
+  .deckgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:10px;}
+  .deckcard{background:linear-gradient(170deg,#222d3f,#161e2b); border:1px solid var(--line); border-radius:9px; padding:5px 6px 6px; overflow:hidden;}
+  .deckcard .band{height:3px; border-radius:2px; margin:-1px -1px 4px;}
+  .deckcard .dc-top{display:flex; align-items:center; gap:4px;}
+  .deckcard .dc-top .em{font-size:14px;} .deckcard .dc-top .pt{font-size:11px; color:var(--gold-soft);}
+  .deckcard .dc-top .ct{margin-left:auto; font-weight:700; color:var(--ink); font-size:13px;}
+  .deckcard .nm{font-size:10px; font-weight:700; margin-top:2px; line-height:1.15;}
+  .deckcard{cursor:pointer;} .deckcard:active{transform:scale(.97);}
+  .deckcard.imp{border-color:#6e5b3a; background:linear-gradient(170deg,#2a2417,#181410);}
+  .dsec{font-size:10px; letter-spacing:.16em; color:var(--gold-soft); margin:12px 2px 7px;}
+  .dsec.rel{color:var(--relic);}
+  .rellist{display:flex; flex-direction:column; gap:7px;}
+  .relline{display:flex; gap:10px; align-items:flex-start; background:rgba(176,131,230,.08); border:1px solid var(--relic-dim); border-radius:11px; padding:8px 11px; cursor:pointer;}
+  .relline:active{transform:scale(.99);} .relline .re{font-size:20px; flex:0 0 auto; line-height:1.2;}
+  .relline b{font-size:12.5px;} .relline .rd{font-size:10.5px; color:var(--muted); line-height:1.4; margin-top:2px;}
+  .infohint{font-size:11px; color:var(--muted); text-align:center; margin-top:4px;}
+  .statgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .statbox{background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:11px; padding:9px 6px; text-align:center;}
+  .statbox .sv{font-size:17px; font-weight:700; color:var(--gold-soft);}
+  .statbox .sl{font-size:9.5px; color:var(--muted); margin-top:3px; letter-spacing:.04em;}
+</style>
+</head>
+<body data-phase="intro">
+  <header>
+    <div class="brand"><span class="ttl">アルケミスト</span><span class="stg">工程 <span id="stageNo" class="num">1</span> · v0.11</span></div>
+    <button class="icon-btn" id="deckBtn" title="調合帳">📜</button>
+    <div class="coins"><span class="c">🪙</span><span id="coinN" class="num">0</span></div>
+    <div class="prog" id="prog"><span class="lab">純度 / 目標純度</span>
+      <span class="v"><span id="scoreN" class="s num">0</span> / <span id="targetN" class="num">0</span></span></div>
+    <button class="icon-btn" id="helpBtn">？</button>
+  </header>
+
+  <main>
+    <button id="modBtn" title="工程効果"></button>
+    <svg id="board" xmlns="http://www.w3.org/2000/svg"></svg>
+    <button id="clearBtn" hidden>完成 →</button>
+  </main>
+
+  <div class="tray">
+    <div class="tray-top">
+      <span class="hint" id="hint">試薬を選び、光るマスをタップ。</span>
+      <span class="placechip">投入 <span class="num" id="placeN">0</span></span>
+      <button class="reroll" id="rerollBtn">引き直し <span class="num" id="rerollN">2</span></button>
+    </div>
+    <div class="hand" id="hand"></div>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+
+  <div class="scrim" id="detailScrim"><div class="sheet" id="detailSheet"></div></div>
+  <div class="scrim" id="deckScrim"><div class="sheet" id="deckSheet"></div></div>
+  <div class="scrim" id="infoScrim" style="z-index:50"><div class="sheet" id="infoSheet"></div></div>
+  <div class="scrim" id="removeScrim" style="z-index:50"><div class="sheet" id="removeSheet"></div></div>
+  <div class="scrim" id="effScrim"><div class="sheet" id="effSheet"></div></div>
+  <div class="scrim" id="helpScrim"><div class="sheet">
+    <h2><span class="em">⚗️</span>遊び方</h2><div class="tag">HOW TO PLAY</div>
+    <div class="help-body">
+      <p class="howlead">調合盤に試薬を置いて<b>純度</b>を稼ぎ、工程ごとの<b>目標純度</b>に届かせるのが基本です。</p>
+      <div class="howsteps">
+        <div class="howstep">
+          <div class="hh"><span class="num">1</span>手札から試薬を置く</div>
+          <div class="fig"><svg viewBox="0 0 300 132" role="img" aria-label="手札から盤面に試薬を置く">
+  <polygon points="0,-20 17,-10 17,10 0,20 -17,10 -17,-10" transform="translate(150,40)" fill="#4f8fd0" stroke="rgba(0,0,0,.32)" stroke-width="1.4" /><text x="150" y="46" text-anchor="middle" font-size="17">💧</text>
+  <polygon points="0,-20 17,-10 17,10 0,20 -17,10 -17,-10" transform="translate(185,60)" fill="#5fae54" stroke="rgba(0,0,0,.32)" stroke-width="1.4" /><text x="185" y="66" text-anchor="middle" font-size="17">🍃</text>
+  <polygon points="0,-20 17,-10 17,10 0,20 -17,10 -17,-10" transform="translate(220,40)" fill="rgba(217,164,65,.12)" stroke="#e9c277" stroke-width="2.2" stroke-dasharray="4 3"/>
+  <text x="220" y="48" text-anchor="middle" font-size="20" fill="#e9c277" font-weight="900">＋</text>
+  <g transform="translate(50,66)">
+    <rect width="48" height="58" rx="9" fill="#222d3f" stroke="#c2462f" stroke-width="1.8"/>
+    <text x="24" y="27" text-anchor="middle" font-size="20">🔥</text>
+    <rect x="14" y="37" width="20" height="15" rx="7" fill="rgba(217,164,65,.18)"/>
+    <text x="24" y="48" text-anchor="middle" font-size="11" fill="#e9c277" font-weight="800">2</text>
+  </g>
+  <path d="M104,90 C150,92 188,64 211,52" fill="none" stroke="#e9c277" stroke-width="2.6" stroke-linecap="round"/>
+  <polygon points="213,49 203,48 207,59" fill="#e9c277"/>
+</svg></div>
+          <div class="cap">手札のカードをタップし、盤面の<b>空きマス</b>をタップして投入する。</div>
+        </div>
+        <div class="howstep">
+          <div class="hh"><span class="num">2</span>純度が加算される</div>
+          <div class="fig"><svg viewBox="0 0 300 104" role="img" aria-label="置くと隣接で純度が増える">
+  <polygon points="0,-20 17,-10 17,10 0,20 -17,10 -17,-10" transform="translate(124,60)" fill="#5fae54" stroke="#e9c277" stroke-width="2.6" /><text x="124" y="66" text-anchor="middle" font-size="17">🍃</text>
+  <polygon points="0,-20 17,-10 17,10 0,20 -17,10 -17,-10" transform="translate(159,60)" fill="#e8714f" stroke="rgba(0,0,0,.32)" stroke-width="1.4" /><text x="159" y="66" text-anchor="middle" font-size="17">🔥</text>
+  <polygon points="0,-20 17,-10 17,10 0,20 -17,10 -17,-10" transform="translate(141,80)" fill="#4f8fd0" stroke="rgba(0,0,0,.32)" stroke-width="1.4" /><text x="141" y="86" text-anchor="middle" font-size="15">💧</text>
+  <text x="159" y="26" text-anchor="middle" font-size="16" fill="#8fe7ad" font-weight="900">＋3</text>
+  <text x="196" y="50" text-anchor="middle" font-size="15" fill="#8fe7ad" font-weight="900">＋1</text>
+  <g transform="translate(232,42)">
+    <rect x="0" y="0" width="56" height="22" rx="11" fill="rgba(217,164,65,.16)"/>
+    <text x="28" y="15" text-anchor="middle" font-size="12" fill="#e9c277" font-weight="800">純度↑</text>
+  </g>
+</svg></div>
+          <div class="cap">置いた試薬と<b>隣り合う試薬</b>が反応し、純度が増える（効果により減ることも）。マスをタップすると内訳を確認できる。</div>
+        </div>
+        <div class="howstep">
+          <div class="hh"><span class="num">3</span>目標純度でクリア</div>
+          <div class="fig"><svg viewBox="0 0 300 96" role="img" aria-label="目標純度に届くとクリア">
+  <text x="26" y="26" font-size="12" fill="#e9c277" font-weight="800">純度 86</text>
+  <text x="200" y="26" text-anchor="middle" font-size="11" fill="#94a0b2">目標 80</text>
+  <rect x="26" y="40" width="214" height="18" rx="9" fill="rgba(255,255,255,.06)" stroke="rgba(217,164,65,.22)"/>
+  <rect x="26" y="40" width="190" height="18" rx="9" fill="#d9a441"/>
+  <line x1="200" y1="34" x2="200" y2="64" stroke="#e9c277" stroke-width="2" stroke-dasharray="3 2"/>
+  <g transform="translate(248,38)"><rect width="40" height="22" rx="7" fill="rgba(111,194,139,.18)" stroke="#6fc28b"/>
+    <text x="20" y="16" text-anchor="middle" font-size="11" fill="#8fe7ad" font-weight="800">完成</text></g>
+  <text x="133" y="84" text-anchor="middle" font-size="11" fill="#94a0b2">目標ラインを超えたら完成（クリア）</text>
+</svg></div>
+          <div class="cap">合計純度が<b>目標純度</b>に届くと<b>完成</b>（クリア）。早く完成するほど報酬コインが増える。</div>
+        </div>
+        <div class="howstep">
+          <div class="hh"><span class="num">4</span>ショップでデッキを強化</div>
+          <div class="fig"><svg viewBox="0 0 300 116" role="img" aria-label="ショップでデッキを強化">
+  <text x="34" y="66" text-anchor="middle" font-size="26">🪙</text>
+  <path d="M52,58 L92,58" fill="none" stroke="#e9c277" stroke-width="2.4" stroke-linecap="round"/>
+  <polygon points="94,58 86,54 86,62" fill="#e9c277"/>
+  <g transform="translate(100,28)">
+    <rect width="54" height="62" rx="9" fill="#222d3f" stroke="#4ea1e6" stroke-width="1.8"/>
+    <text x="27" y="28" text-anchor="middle" font-size="20">🌀</text>
+    <rect x="9" y="38" width="20" height="15" rx="7" fill="rgba(217,164,65,.18)"/>
+    <text x="19" y="49" text-anchor="middle" font-size="11" fill="#e9c277" font-weight="800">6</text>
+    <text x="40" y="50" text-anchor="middle" font-size="11">🪙</text>
+  </g>
+  <text x="172" y="64" text-anchor="middle" font-size="20" fill="#e9c277" font-weight="900">＋</text>
+  <g transform="translate(196,34)">
+    <rect x="0" y="10" width="34" height="44" rx="7" fill="#1c2636" stroke="rgba(217,164,65,.25)"/>
+    <rect x="9" y="5" width="34" height="44" rx="7" fill="#202b3c" stroke="rgba(217,164,65,.3)"/>
+    <rect x="18" y="0" width="34" height="44" rx="7" fill="#26344a" stroke="#6f8bb0"/>
+    <text x="35" y="27" text-anchor="middle" font-size="16">⚗️</text>
+  </g>
+  <text x="246" y="96" text-anchor="middle" font-size="11" fill="#94a0b2">調合帳が強くなる</text>
+</svg></div>
+          <div class="cap">工程クリアで得た<b>コイン</b>でショップから試薬を購入し、<b>調合帳</b>を強くしていく。</div>
+        </div>
+      </div>
+    </div>
+    <button class="close" data-close="helpScrim">とじる</button>
+  </div></div>
+
+<script>
+/* ===================== COLORS / RARITY ===================== */
+const COLORS = {
+  red:{f:'#c2462f',g:'#f0795a',jp:'火'}, blue:{f:'#2f6fb0',g:'#5fa3e0',jp:'水'},
+  green:{f:'#3f8f5c',g:'#67c389',jp:'草'}, purple:{f:'#7a4fb0',g:'#b083e6',jp:'霊'},
+  yellow:{f:'#c9a02f',g:'#f0d066',jp:'硫'}, gray:{f:'#5b6473',g:'#8b96a8',jp:'塩'},
+};
+const RARITY = {
+  basic:{w:0, base:2, mul:0.3, jp:'基本'},
+  normal:{w:6, base:3, mul:0.4, jp:'通常'},
+  uncommon:{w:3, base:6, mul:0.4, jp:'希少'},
+  rare:{w:1, base:10, mul:0.5, jp:'秘伝'},
+  impurity:{w:0, base:0, mul:0, jp:'不純物'},
+};
+
+/* ===================== TILE CATALOG (45) ===================== */
+const CATALOG = [
+  {id:'pebble',n:'粗塩',e:'🧂',c:'gray',base:1,r:'basic',d:'特殊効果なし。'},
+  {id:'herb',n:'薬草',e:'🍃',c:'green',base:2,r:'basic',d:'特殊効果なし。'},
+  {id:'shard',n:'エーテル片',e:'💠',c:'purple',base:3,r:'normal',d:'特殊効果なし。'},
+  {id:'gold',n:'硫黄塊',e:'🟡',c:'yellow',base:5,r:'uncommon',d:'特殊効果なし。'},
+  {id:'gem',n:'精製エーテル',e:'💎',c:'purple',base:8,r:'rare',d:'特殊効果なし。'},
+  {id:'ember',n:'熾火',e:'🔥',c:'red',base:2,r:'basic',d:'特殊効果なし。'},
+  {id:'lantern',n:'坩堝の火',e:'🕯️',c:'yellow',base:0,r:'basic',d:'隣接する全試薬を +1。',aura:()=>1},
+  {id:'spring',n:'清水',e:'💧',c:'blue',base:0,r:'basic',d:'隣接する全試薬を +1。',aura:()=>1},
+  {id:'bonfire',n:'焜炉',e:'♨️',c:'red',base:1,r:'uncommon',d:'隣接を +1、火なら +2。',aura:n=>n.c==='red'?2:1},
+  {id:'shrine',n:'聖なる苗床',e:'🌱',c:'green',base:0,r:'rare',d:'隣接する全試薬を +2。',aura:()=>2},
+  {id:'circle',n:'小魔法陣',e:'🔯',c:'purple',base:0,r:'uncommon',d:'隣接を +1、霊なら +3。',aura:n=>n.c==='purple'?3:1},
+  {id:'sapling',n:'蔓草',e:'🌿',c:'green',base:1,r:'normal',d:'隣接する草1つにつき +2。',self:x=>2*(x.adjByColor.green||0)},
+  {id:'wolf',n:'群晶',e:'🧫',c:'gray',base:0,r:'uncommon',d:'隣接する試薬1つにつき +2。',self:x=>2*x.adj},
+  {id:'hermit',n:'昇華の塩',e:'⚪',c:'gray',base:7,r:'uncommon',d:'隣接が無ければ純度7、あれば純度1。',self:x=>x.adj===0?0:-6},
+  {id:'collect',n:'集塩器',e:'🧺',c:'yellow',base:0,r:'uncommon',d:'盤面の「純度1の試薬」1枚につき +1。',self:x=>(x.byBase[1]||0)},
+  {id:'mirror',n:'水鏡',e:'🪞',c:'blue',base:0,r:'rare',d:'隣接する最も高い試薬の「現在の点数」と同じ点数に。',copy:true},
+  {id:'twins',n:'双晶',e:'♊',c:'gray',base:2,r:'normal',d:'隣接する試薬がちょうど1枚なら +4。',self:x=>x.adj===1?4:0},
+  {id:'triad',n:'三角フラスコ',e:'⚗️',c:'yellow',base:1,r:'normal',d:'隣接する試薬がちょうど3枚なら +6。',self:x=>x.adj===3?6:0},
+  {id:'comet',n:'対の試験管',e:'🧪',c:'blue',base:3,r:'uncommon',d:'隣接する試薬がちょうど2枚なら +5。',self:x=>x.adj===2?5:0},
+  {id:'crown',n:'触媒の王',e:'👑',c:'yellow',base:2,r:'uncommon',d:'隣接する属性の種類1つにつき +2。',self:x=>2*x.adjColorsDistinct},
+  {id:'rainbow',n:'虹彩反応',e:'🌈',c:'purple',base:0,r:'rare',d:'デッキのカード1枚につき +1。',self:x=>(run.deck?run.deck.length:0)},
+  {id:'guardian',n:'結晶核',e:'🗿',c:'gray',base:3,r:'normal',d:'隣接する空きマス1つにつき +1。',self:x=>x.adjEmpty},
+  {id:'resonate',n:'共鳴の霊砂',e:'🟣',c:'purple',base:0,r:'uncommon',d:'盤面の霊1枚につき +1（自身含む）。',self:x=>(x.byColor.purple||0)},
+  {id:'firesp',n:'火霊',e:'🦎',c:'red',base:2,r:'normal',d:'隣接する火1つにつき +2。',self:x=>2*(x.adjByColor.red||0)},
+  {id:'watersp',n:'水霊',e:'🌊',c:'blue',base:2,r:'normal',d:'隣接する水1つにつき +2。',self:x=>2*(x.adjByColor.blue||0)},
+  {id:'forest',n:'森羅の根',e:'🌲',c:'green',base:0,r:'uncommon',d:'盤面の草1枚につき +1（自身含む）。',self:x=>(x.byColor.green||0)},
+  {id:'stardust',n:'硫の粉',e:'✨',c:'yellow',base:1,r:'normal',d:'隣接する硫1つにつき +2。',self:x=>2*(x.adjByColor.yellow||0)},
+  {id:'volcano',n:'暴走坩堝',e:'🌋',c:'red',base:10,r:'rare',d:'純度10。隣接する全試薬を -2。',aura:()=>-2},
+  {id:'storm',n:'腐食霧',e:'🌩️',c:'gray',base:0,r:'uncommon',d:'隣接を -1。自身は隣接1枚につき +2。',aura:()=>-1,self:x=>2*x.adj},
+  {id:'cursed',n:'劇毒の金液',e:'🪙',c:'yellow',base:12,r:'rare',d:'純度12。隣接する試薬1枚につき -3。',self:x=>-3*x.adj},
+  {id:'beehive',n:'蜜蝋の巣',e:'🐝',c:'yellow',base:0,r:'uncommon',d:'隣接を +1。自身も隣接1枚につき +1。',aura:()=>1,self:x=>x.adj},
+  {id:'eldorado',n:'黄金の霊薬',e:'🏆',c:'yellow',base:0,r:'uncommon',d:'盤面の硫1枚につき +2。隣接する硫を +1。',aura:n=>n.c==='yellow'?1:0,self:x=>2*(x.byColor.yellow||0)},
+  {id:'light',n:'蒸留塔',e:'🗼',c:'blue',base:1,r:'uncommon',d:'隣接を +1。隣接する空きマス1つにつき自身 +1。',aura:()=>1,self:x=>x.adjEmpty},
+  {id:'goblin',n:'腐敗菌',e:'👹',c:'green',base:4,r:'normal',d:'純度4。隣接する草1つにつき -2。',self:x=>-2*(x.adjByColor.green||0)},
+  {id:'philos',n:'賢者の石',e:'🔮',c:'purple',base:4,r:'rare',d:'純度4。盤面に存在する属性の種類1つにつき +4。',self:x=>4*x.colorsDistinct},
+  {id:'anchor',n:'冷却管',e:'⚓',c:'blue',base:2,r:'normal',d:'調合盤の縁（外周）に置くと +4。',self:x=>x.onEdge?4:0},
+  {id:'monument',n:'中核炉',e:'🏛️',c:'gray',base:2,r:'uncommon',d:'六方すべてが盤内のマスに置くと +5。',self:x=>x.onEdge?0:5},
+  {id:'miser',n:'吝嗇の坩堝',e:'💰',c:'yellow',base:6,r:'uncommon',d:'純度6。盤面の他の硫1枚につき -1。',self:x=>-((x.byColor.yellow||0)-1)},
+  {id:'garden',n:'霊草園',e:'🌷',c:'green',base:0,r:'uncommon',d:'隣接する草を +1。自身も隣接する草1枚につき +1。',aura:n=>n.c==='green'?1:0,self:x=>(x.adjByColor.green||0)},
+  {id:'overload',n:'過熱反応',e:'⚡',c:'red',base:-3,r:'rare',d:'純度-3。隣接する全試薬を +3。',aura:()=>3},
+  {id:'oasis',n:'潤いの泉',e:'🏝️',c:'blue',base:2,r:'uncommon',d:'隣接を +2。隣接する空きマス1つにつき自身 +2。',aura:()=>2,self:x=>2*x.adjEmpty},
+  /* --- new rares (one marquee per color) --- */
+  {id:'phoenix',n:'不死鳥の灰',e:'🦅',c:'red',base:6,r:'rare',d:'純度6。隣接する試薬が全て火なら +8。',self:x=>(x.adj>0 && (x.adjByColor.red||0)===x.adj)?8:0},
+  {id:'crimson',n:'紅蓮核',e:'💥',c:'red',base:0,r:'rare',d:'盤面の火1枚につき +3（自身を含む）。隣接する全試薬を -1。',self:x=>3*(x.byColor.red||0),aura:()=>-1},
+  {id:'kraken',n:'深淵の水銀',e:'🐙',c:'blue',base:4,r:'rare',d:'隣接する水1つにつき +3。',self:x=>3*(x.adjByColor.blue||0)},
+  {id:'worldtree',n:'世界樹の樹液',e:'🌳',c:'green',base:0,r:'rare',d:'盤面の草1枚につき +2（自身含む）。',self:x=>2*(x.byColor.green||0)},
+  {id:'midas',n:'金化の秘薬',e:'✋',c:'yellow',base:0,r:'rare',d:'盤面の硫1枚につき +2。隣接を +1。',aura:()=>1,self:x=>2*(x.byColor.yellow||0)},
+  {id:'arcanum',n:'大いなる秘儀',e:'🌀',c:'purple',base:0,r:'rare',d:'隣接する属性の種類1つにつき +4。',self:x=>4*x.adjColorsDistinct},
+  {id:'spectrum',n:'万華の霊',e:'🌌',c:'purple',base:0,r:'rare',d:'盤面に存在する属性の種類1つにつき +6。',self:x=>6*x.colorsDistinct},
+  {id:'catalyst',n:'触媒結晶',e:'✴️',c:'purple',base:1,r:'rare',d:'最終純度が ×1.12。複数で加算し、タイル由来は合計 ×1.5 まで。',totalMultBonus:0.12},
+  /* --- 不純物（ショップ非販売。デバフ/工程効果でデッキに混入）--- */
+  /* imp:'temp' = その工程で消える / imp:'perm' = 廃棄しない限り残る */
+  {id:'sludge',n:'ヘドロ',e:'🟤',c:'gray',base:-1,r:'impurity',imp:'temp',d:'特殊効果なし。純度-1。'},
+  {id:'soot',n:'煤',e:'⚫',c:'gray',base:0,r:'impurity',imp:'temp',d:'隣接する全試薬を -1。',aura:()=>-1},
+  {id:'rust',n:'錆',e:'🟫',c:'gray',base:0,r:'impurity',imp:'temp',d:'隣接する試薬1つにつき -1。',self:x=>-1*x.adj},
+  {id:'fume',n:'毒煙',e:'💨',c:'gray',base:0,r:'impurity',imp:'temp',d:'隣接する全試薬を -2。',aura:()=>-2},
+  {id:'taint',n:'澱(おり)',e:'🫗',c:'gray',base:-2,r:'impurity',imp:'perm',d:'特殊効果なし。純度-2。'},
+  {id:'blight',n:'黒錆',e:'🕸️',c:'gray',base:-1,r:'impurity',imp:'perm',d:'純度-1。隣接する全試薬を -1。',aura:()=>-1},
+  {id:'leaddross',n:'鉛滓',e:'🪨',c:'gray',base:-3,r:'impurity',imp:'temp',d:'特殊効果なし。純度-3。'},
+];
+const BYID = Object.fromEntries(CATALOG.map(t=>[t.id,t]));
+function priceOf(t){ const R=RARITY[t.r]; return R.base + Math.round(t.base*R.mul); }
+
+/* ===================== RELICS (permanent reward, 24) ===================== */
+const RELICS = [
+  {id:'amplifier',n:'賢者の触媒',e:'🔆',d:'盤上の全試薬が +1点。',tileBonus:()=>1},
+  {id:'anvil',n:'錬成台',e:'🔨',d:'基本0点の試薬が +2点。',tileBonus:t=>t.base===0?2:0},
+  {id:'magnet',n:'精製の篩',e:'🧲',d:'基本1点の試薬が +3点。',tileBonus:t=>t.base===1?3:0},
+  {id:'rubycore',n:'火の精質',e:'🔥',d:'火の試薬が +3点。',tileBonus:t=>t.c==='red'?3:0},
+  {id:'sapphire',n:'水の精質',e:'💧',d:'水の試薬が +3点。',tileBonus:t=>t.c==='blue'?3:0},
+  {id:'emerald',n:'草の精質',e:'🌿',d:'草の試薬が +3点。',tileBonus:t=>t.c==='green'?3:0},
+  {id:'amethyst',n:'霊の精質',e:'🔮',d:'霊の試薬が +3点。',tileBonus:t=>t.c==='purple'?3:0},
+  {id:'topaz',n:'硫の精質',e:'🟡',d:'硫の試薬が +3点。',tileBonus:t=>t.c==='yellow'?3:0},
+  {id:'obsidian',n:'塩の精質',e:'🧂',d:'塩の試薬が +3点。',tileBonus:t=>t.c==='gray'?3:0},
+  {id:'crownjewel',n:'王水の小瓶',e:'👑',d:'基本5点以上の試薬が +4点。',tileBonus:t=>t.base>=5?4:0},
+  {id:'chaingear',n:'連環の歯車',e:'⚙️',d:'隣接3枚以上の試薬が +3点。',tileBonus:(t,i)=>i.adj>=3?3:0},
+  {id:'lonegem',n:'孤高の昇華',e:'⚪',d:'孤立（隣接0）の試薬が +5点。',tileBonus:(t,i)=>i.adj===0?5:0},
+  {id:'metronome',n:'律動の振り子',e:'🎶',d:'外周マスの試薬が +3点。',tileBonus:(t,i)=>i.onEdge?3:0},
+  {id:'resonant',n:'共振の水晶',e:'💠',d:'置いた試薬1枚につき +1点。',flatBonus:s=>s.count},
+  {id:'completion',n:'完全調合の書',e:'🧩',d:'調合盤を全て埋めるとクリア時 +30点。',flatBonus:s=>s.empty===0?30:0},
+  {id:'goldenratio',n:'黄金比の定規',e:'📐',d:'最終純度が ×1.25。',totalMult:1.25},
+  {id:'glove',n:'錬金手袋',e:'🧤',d:'手札が +1枚。',handBonus:1},
+  {id:'foresight',n:'予見の水晶球',e:'👁️',d:'各工程の引き直しが +3回。',rerollBonus:3},
+  {id:'piggy',n:'へそくり壺',e:'🐷',d:'工程クリアごとに +5コイン。',coinClear:()=>5},
+  {id:'investor',n:'投資家の指輪',e:'💍',d:'クリア時、所持コインの15%を利息として得る。',coinClear:i=>Math.floor(i.coins*0.15)},
+  {id:'hoard',n:'秘蔵の宝棚',e:'💎',d:'クリア時、残った投入可能数1つにつき +1コイン。',coinClear:i=>i.left},
+  {id:'haggler',n:'値切りの護符',e:'🏷️',d:'ショップの試薬が 3コイン引き。',shopDiscount:3},
+  {id:'twilightmirror',n:'黄昏の鏡',e:'🪞',d:'投入温存ボーナスのコインが ×2。',overshootMult:2},
+  {id:'compass',n:'測定の天秤',e:'⚖️',d:'各工程の目標純度が 20%減る。',targetMult:0.8},
+  {id:'satchel',n:'素材袋',e:'🎒',d:'1工程に投入できる試薬が +3枚。',placeBonus:3},
+  {id:'incinerator',n:'焼却炉',e:'🗑️',d:'ショップでの試薬の廃棄コストが半額になる。',removeMult:0.5},
+  {id:'purifier',n:'濾過器',e:'🧽',d:'各工程の開始時、永続不純物を1枚まで自動で取り除く。',cleanse:1},
+];
+const RELBY = Object.fromEntries(RELICS.map(r=>[r.id,r]));
+
+/* ===================== STAGE MODIFIERS (normal, 18) ===================== */
+const MODS = [
+  {id:'plain',n:'安定した工程',e:'🟦',d:'特殊効果なし。手堅く調合できる。',tm:1.0},
+  {id:'narrow',n:'双子坩堝',e:'♾️',d:'調合盤が、小さな坩堝を2つ連ねた形（13マス）になる。',cells:['-2,0','-2,1','-1,-1','-1,0','-1,1','0,-1','0,0','0,1','1,-1','1,0','1,1','2,-1','2,0'],tm:0.9},
+  {id:'cavern',n:'大窯','e':'🪨',d:'調合盤が巨大（37マス）。投入できる試薬が +8枚。汚染マスが6つ。',radius:3,placeDelta:8,blockedCount:6,tm:1.2},
+  {id:'cramped',n:'手狭な作業台',e:'🤏',d:'手札が1枚減る。',handDelta:-1,tm:0.85},
+  {id:'vista',n:'広い工房',e:'🔭',d:'手札が1枚増える。',handDelta:1,tm:1.1},
+  {id:'goldcenter',n:'中核の活性',e:'🟡',d:'中央マスの点数が2倍。',cellMult:i=>i.key==='0,0'?2:1,tm:1.05},
+  {id:'edgevein',n:'外縁の活性',e:'⭕',d:'外周マスの点数が2倍。',cellMult:i=>i.onEdge?2:1,tm:1.2},
+  {id:'redheat',n:'強火',e:'🔥',d:'火の試薬の点数が2倍。',tileMult:t=>t.c==='red'?2:1,tm:1.1},
+  {id:'flood',n:'注水',e:'🌊',d:'水の試薬の点数が2倍。',tileMult:t=>t.c==='blue'?2:1,tm:1.1},
+  {id:'density',n:'高濃度',e:'🧱',d:'投入した試薬1枚につき +2点。',flatBonus:s=>2*s.count,tm:1.25},
+  {id:'void',n:'空隙の呪い',e:'🕯️',d:'クリア時、空きマス1つにつきコイン -1。',coinDelta:s=>-1*s.empty,tm:0.95},
+  {id:'bounty',n:'豊潤な素材',e:'🌾',d:'クリア時コイン +8。',coinDelta:()=>8,tm:1.15},
+  {id:'balance',n:'中庸',e:'⚖️',d:'基本2点以下の試薬が +2点。',valueBonus:t=>t.base<=2?2:0,tm:1.1},
+  {id:'prism',n:'虹彩の祝福',e:'🌈',d:'盤上の属性の種類1つにつき +3点。',flatBonus:s=>3*s.distinct,tm:1.05},
+  {id:'barren',n:'汚染区画',e:'☠️',d:'汚染マスが4つに増える。',blockedCount:4,tm:0.85},
+  {id:'twilight',n:'黄昏の工程',e:'🌆',d:'目標は高いが、投入温存ボーナスが2倍。',overshootMult:2,tm:1.25},
+  {id:'turbulence',n:'乱流',e:'🌀',d:'手札1枚減・引き直し +4回。',handDelta:-1,rerollDelta:4,tm:0.9},
+  {id:'expansion',n:'拡張炉',e:'📐',d:'投入できる試薬が +4枚。',placeDelta:4,tm:1.15},
+  {id:'touchstone',n:'試金石',e:'🪙',d:'目標が低い安全な工程。',tm:0.7},
+  {id:'tainted',n:'不純な素材',e:'🧫',d:'この工程だけ不純物が3枚混入するが、クリア時コイン +12。',addTemp:3,coinDelta:()=>12,tm:0.95},
+];
+const MODBY = Object.fromEntries(MODS.map(m=>[m.id,m]));
+
+/* ===================== DEBUFFS (trials, stage-only & strong, 8) ===================== */
+const DEBUFFS = [
+  {id:'handcut',n:'試薬不足',e:'🫳',d:'手札が2枚減る。',handDelta:-2,tm:0.8},
+  {id:'bind',n:'固着',e:'🪢',d:'引き直しができず、手札も1枚減る。',rerollDelta:-99,handDelta:-1,tm:0.85},
+  {id:'heavyair',n:'瘴気',e:'🌫️',d:'全試薬が -2点。',valueBonus:()=>-2,tm:0.7},
+  {id:'collapse',n:'炉の崩落',e:'🪨',d:'汚染マスが3つ増える。',blockedExtra:3,tm:0.8},
+  {id:'hightax',n:'高純度要求',e:'💸',d:'目標純度が大幅に高い（×1.5）。',tm:1.5},
+  {id:'crumbledge',n:'外縁の失活',e:'🧨',d:'外周マスがすべて0点になる。',cellMult:i=>i.onEdge?0:1,tm:0.65},
+  {id:'discord',n:'劣化',e:'🎭',d:'基本4点以上の試薬が -3点。',valueBonus:t=>t.base>=4?-3:0,tm:0.85},
+  {id:'wither',n:'失活',e:'🥀',d:'全試薬の点数が半分（切り捨て）。',cellMult:()=>0.5,tm:0.75},
+  {id:'rationed',n:'配給制限',e:'⛓️',d:'投入できる試薬が4枚減る。',placeDelta:-4,tm:0.85},
+  {id:'contaminate',n:'試薬汚染',e:'🦠',d:'この工程に不純物が3枚混入する（工程終了で消える）。',addTemp:3,tm:0.85},
+  {id:'curse',n:'呪いの澱',e:'🩸',d:'デッキに永続不純物が1枚加わる（廃棄するまで残る）。',addPerm:1,tm:0.8},
+];
+const DEBBY = Object.fromEntries(DEBUFFS.map(d=>[d.id,d]));
+const EFFBY = Object.assign({}, MODBY, DEBBY);
+
+/* ===================== HEX GRID (rebuildable + blocked) ===================== */
+const DIRS = [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
+const S = 40;
+let CELLS=[], CELLSET=new Set(), POS={}, BLOCKED=[], VIEWBOX=[0,0,100,100];
+function key(q,r){return q+','+r;}
+const board_el=document.getElementById('board');
+function buildBoard(radius, blocked, shapeSet){
+  boardRadius=radius;
+  CELLS=[]; CELLSET=new Set(); POS={}; BLOCKED=[];
+  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  for(let q=-radius;q<=radius;q++) for(let r=-radius;r<=radius;r++){
+    if(Math.max(Math.abs(q),Math.abs(r),Math.abs(q+r))>radius) continue;
+    const k=key(q,r);
+    if(shapeSet && !shapeSet.has(k)) continue;     // 形状外のマスは存在しない
+    const x=S*Math.sqrt(3)*(q+r/2), y=S*1.5*r;
+    minX=Math.min(minX,x-S); maxX=Math.max(maxX,x+S); minY=Math.min(minY,y-S); maxY=Math.max(maxY,y+S);
+    if(blocked && blocked.has(k)){ BLOCKED.push({key:k,x,y}); continue; }
+    CELLS.push({q,r,key:k,x,y}); CELLSET.add(k); POS[k]={x,y};
+  }
+  const pad=8; VIEWBOX=[minX-pad,minY-pad,(maxX-minX)+pad*2,(maxY-minY)+pad*2];
+  board_el.setAttribute('viewBox', VIEWBOX.join(' '));
+}
+function fullCellKeys(radius){const ks=[];for(let q=-radius;q<=radius;q++)for(let r=-radius;r<=radius;r++)
+  if(Math.max(Math.abs(q),Math.abs(r),Math.abs(q+r))<=radius)ks.push(key(q,r));return ks;}
+function hexPoints(cx,cy){let p='';for(let i=0;i<6;i++){const a=Math.PI/180*(60*i-90);
+  p+=(cx+S*Math.cos(a)).toFixed(2)+','+(cy+S*Math.sin(a)).toFixed(2)+' ';}return p.trim();}
+function hexPointsInset(cx,cy,k){let p='';for(let i=0;i<6;i++){const a=Math.PI/180*(60*i-90);
+  p+=(cx+S*k*Math.cos(a)).toFixed(2)+','+(cy+S*k*Math.sin(a)).toFixed(2)+' ';}return p.trim();}
+function glossPoints(cx,cy){const a0=-150*Math.PI/180,a1=-90*Math.PI/180,a2=-30*Math.PI/180;
+  const p=a=>(cx+S*0.86*Math.cos(a)).toFixed(1)+','+(cy+S*0.86*Math.sin(a)).toFixed(1);
+  return `${cx},${cy} ${p(a0)} ${p(a1)} ${p(a2)}`;}
+function validNeighbors(k){const[q,r]=k.split(',').map(Number);
+  return DIRS.map(([dq,dr])=>key(q+dq,r+dr)).filter(nk=>CELLSET.has(nk));}
+
+/* ===================== STATE ===================== */
+const START_DECK = ['pebble','pebble','pebble','pebble','herb','herb',
+  'ember','ember','lantern','lantern','spring','spring','shard'];
+const COIN_PER_LEFT = 1;
+const PLACE_BASE = 15;
+const IMP_TEMP = ['sludge','soot','rust','fume','leaddross'];
+const IMP_PERM = ['taint','blight'];
+function clearBase(n){ return 4 + 2*n; }   // 調合品の売却益：工程が深いほど高い
+let run, board, drawPile, hand, selected, handSize, rerolls, placeLimit, placesLeft, lastValues, phase='intro', boardRadius=2, handDealIdx=null, handLeaveIdx=null, rerollBusy=false;
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+function baseTarget(n){ return Math.round(11 + 4*n + 0.95*n*n); }
+function relicList(){ return (run&&run.relics)?run.relics.map(id=>RELBY[id]):[]; }
+function sumRelic(k){ let s=0; for(const r of relicList()) if(typeof r[k]==='number') s+=r[k]; return s; }
+function prodRelic(k){ let m=1; for(const r of relicList()) if(typeof r[k]==='number') m*=r[k]; return m; }
+function activeMods(){ return run.stage.mods.map(id=>EFFBY[id]); }
+function computeTarget(n, modIds){ let t=baseTarget(n); for(const id of modIds){const m=EFFBY[id]; t*=(m.tm||1);} t*=prodRelic('targetMult'); return Math.max(1,Math.round(t)); }
+
+function newRun(){
+  run={coins:0, deck:[...START_DECK], relics:[], stageNum:1, totalScore:0, stagesCleared:0,
+       stageOptions:[], isTrial:false, shopItems:[], shopRerollCost:3, removeCost:20, lastReward:null, relicChoices:[], history:[]};
+  // 工程1は必ず効果なし。選択画面はスキップして即開始。
+  startStage({mods:['plain'], target:computeTarget(1,['plain']), trial:false});
+}
+function genStageOptions(){
+  if(run.stageNum % 3 === 0){
+    const pool=shuffle([...MODS]);
+    const trialMod=pool[0].id;
+    const deb=shuffle([...DEBUFFS])[0].id;
+    const trial={mods:[trialMod, deb], target:computeTarget(run.stageNum,[trialMod,deb]), trial:true};
+    const normals=pool.slice(1,3).map(m=>({mods:[m.id], target:computeTarget(run.stageNum,[m.id]), trial:false}));
+    run.stageOptions=[trial, ...normals];
+    run.isTrial=true;
+  } else {
+    const pool=shuffle([...MODS]); let opts=pool.slice(0,3);
+    if(!opts.some(m=>(m.tm||1)<=1.0)){ const safe=pool.find(m=>(m.tm||1)<=1.0 && !opts.includes(m)); if(safe) opts[2]=safe; }
+    run.stageOptions=opts.map(m=>({mods:[m.id], target:computeTarget(run.stageNum,[m.id]), trial:false}));
+    run.isTrial=false;
+  }
+}
+function startStage(opt){
+  run.stage={mods:opt.mods, trial:!!opt.trial}; run.target=opt.target; run.cleared=false;
+  if(run.history) run.history.push({n:run.stageNum, mods:opt.mods.slice(), trial:!!opt.trial, target:opt.target});
+  // 永続不純物の付与（呪いの澱など）
+  let addPerm=0; for(const id of opt.mods){const m=EFFBY[id]; addPerm+=m.addPerm||0;}
+  for(let i=0;i<addPerm;i++) run.deck.push(IMP_PERM[(Math.random()*IMP_PERM.length)|0]);
+  // 濾過器：工程開始時に永続不純物を自動除去
+  let cleanse=sumRelic('cleanse');
+  while(cleanse-->0){ const idx=run.deck.findIndex(id=>BYID[id]&&BYID[id].r==='impurity'); if(idx<0)break; run.deck.splice(idx,1); }
+  let radius=2; for(const id of opt.mods){const m=EFFBY[id]; if(m.radius) radius=m.radius;}
+  let shapeSet=null; for(const id of opt.mods){const m=EFFBY[id]; if(m.cells){ shapeSet=new Set(m.cells); radius=2; }}
+  let bc = shapeSet ? 0 : (radius===1 ? 0 : 2);
+  for(const id of opt.mods){const m=EFFBY[id]; if(m.blockedCount!=null) bc=Math.max(bc,m.blockedCount);}
+  for(const id of opt.mods){const m=EFFBY[id]; if(m.blockedExtra) bc+=m.blockedExtra;}
+  let ks=fullCellKeys(radius).filter(k=>k!=='0,0'); if(shapeSet) ks=ks.filter(k=>shapeSet.has(k)); shuffle(ks);
+  const blocked=new Set(ks.slice(0, Math.min(bc, ks.length)));
+  buildBoard(radius, blocked, shapeSet);
+  let hd=0, rd=0, pd=0, addTemp=0;
+  for(const id of opt.mods){const m=EFFBY[id]; hd+=m.handDelta||0; rd+=m.rerollDelta||0; pd+=m.placeDelta||0; addTemp+=m.addTemp||0;}
+  handSize=Math.max(1, 4+hd+sumRelic('handBonus'));
+  rerolls=Math.max(0, 2+rd+sumRelic('rerollBonus'));
+  placeLimit=Math.max(1, Math.min(CELLS.length, PLACE_BASE+pd+sumRelic('placeBonus')));
+  placesLeft=placeLimit;
+  board=new Map(); drawPile=shuffle([...run.deck]); hand=[]; selected=null;
+  // 一時不純物：この工程の山札にだけ混ぜる（工程終了で消える）
+  for(let i=0;i<addTemp;i++) drawPile.push(IMP_TEMP[(Math.random()*IMP_TEMP.length)|0]);
+  if(addTemp) shuffle(drawPile);
+  for(let i=0;i<handSize;i++) drawCard();
+  setPhase('play');
+}
+function drawCard(){ if(drawPile.length && hand.length<handSize) hand.push(drawPile.pop()); }
+function refill(){ while(hand.length<handSize && drawPile.length) drawCard(); }
+
+/* ===================== SCORING ENGINE ===================== */
+function compute(){
+  const mods=activeMods(); const relics=relicList();
+  const byColor={},byBase={};
+  for(const t of board.values()){byColor[t.c]=(byColor[t.c]||0)+1;byBase[t.base]=(byBase[t.base]||0)+1;}
+  const colorsDistinct=Object.keys(byColor).length;
+  const aura={}; for(const k of board.keys())aura[k]=0;
+  for(const [k,t] of board){const def=BYID[t.id]; if(!def.aura)continue;
+    for(const nk of validNeighbors(k)) if(board.has(nk)) aura[nk]+=def.aura(board.get(nk));}
+  const values={},raw={},self={},mult={},modB={},relB={};
+  for(const [k,t] of board){
+    const def=BYID[t.id]; const vN=validNeighbors(k); const filled=vN.filter(nk=>board.has(nk));
+    const adjByColor={}; let adjMaxBase=0;
+    for(const nk of filled){const nt=board.get(nk); adjByColor[nt.c]=(adjByColor[nt.c]||0)+1; if(nt.base>adjMaxBase)adjMaxBase=nt.base;}
+    const ctx={adj:filled.length, adjEmpty:vN.length-filled.length, adjByColor,
+      adjColorsDistinct:Object.keys(adjByColor).length, adjMaxBase, onEdge:Math.max(Math.abs(t.q),Math.abs(t.r),Math.abs(t.q+t.r))===boardRadius, byColor, byBase, colorsDistinct};
+    const s=def.self?def.self(ctx):0; self[k]=s;
+    const info={key:k,q:t.q,r:t.r,onEdge:ctx.onEdge,adj:ctx.adj};
+    let mb=0; for(const m of mods) if(m.valueBonus) mb+=m.valueBonus(t,info);
+    let rb=0; for(const rel of relics) if(rel.tileBonus) rb+=rel.tileBonus(t,info);
+    modB[k]=mb; relB[k]=rb;
+    let r=t.base+aura[k]+s+mb+rb;
+    let m=1; for(const md of mods){ if(md.cellMult)m*=md.cellMult(info); if(md.tileMult)m*=md.tileMult(t); }
+    raw[k]=r; mult[k]=m; values[k]=Math.round(r*m);
+  }
+  // copy tiles (水鏡など): 隣接で最も点数の高い試薬の「現在の点数」をコピー
+  const copy={}; const pval=Object.assign({},values);
+  for(const [k,t] of board){ if(BYID[t.id].copy){
+    const ns=validNeighbors(k).filter(nk=>board.has(nk)).map(nk=>pval[nk]);
+    values[k]= ns.length? Math.max(...ns) : 0; copy[k]=values[k];
+  }}
+  let total=Object.values(values).reduce((a,b)=>a+b,0);
+  const sinfo={count:board.size, distinct:colorsDistinct, empty:CELLS.length-board.size};
+  let flat=0; for(const m of mods) if(m.flatBonus) flat+=m.flatBonus(sinfo);
+  for(const rel of relics){ if(rel.flatBonus) flat+=rel.flatBonus(sinfo); }
+  let tileMultPool=0; for(const t of board.values()){ const def=BYID[t.id]; if(def.totalMultBonus) tileMultPool+=def.totalMultBonus; }
+  const tileTotalMult = 1 + Math.min(0.5, tileMultPool);   // タイル由来倍率は合計+50%で頭打ち（崩壊防止）
+  total=Math.round((total+flat)*prodRelic('totalMult')*tileTotalMult);
+  return {values,aura,self,raw,mult,modB,relB,total,flat,copy,tileTotalMult};
+}
+
+/* ===================== RENDER (play) ===================== */
+function defs(){let g='';for(const c in COLORS)g+=`<radialGradient id="grad-${c}" cx="38%" cy="28%" r="78%">
+  <stop offset="0%" stop-color="${COLORS[c].g}"/><stop offset="100%" stop-color="${COLORS[c].f}"/></radialGradient>`;return `<defs>${g}</defs>`;}
+function cellMod(cell){ // セルにかかる cellMult の合算（1=影響なし）
+  if(!run||!run.stage) return 1;
+  const info={key:cell.key, onEdge:Math.max(Math.abs(cell.q),Math.abs(cell.r),Math.abs(cell.q+cell.r))===boardRadius, adj:0};
+  let m=1; for(const id of run.stage.mods){const md=EFFBY[id]; if(md.cellMult) m*=md.cellMult(info);}
+  return m;
+}
+function renderBoard(){
+  const res=compute(); lastValues=res; let svg=defs(); let aff='';
+  for(const bc of BLOCKED){ svg+=`<g class="hexgroup blocked"><polygon class="hex-blocked" points="${hexPoints(bc.x,bc.y)}"></polygon><text class="hex-x" x="${bc.x}" y="${bc.y+6}">✕</text></g>`; }
+  for(const cell of CELLS){
+    const t=board.get(cell.key); const pts=hexPoints(cell.x,cell.y);
+    const cm=cellMod(cell); if(cm!==1) aff+=`<polygon class="hexaff ${cm>1?'buff':'debuff'}" points="${hexPointsInset(cell.x,cell.y,0.8)}"></polygon>`;
+    if(!t){ svg+=`<g class="hexgroup place${(selected!=null&&placesLeft>0)?' target':''}" data-empty="${cell.key}"><polygon class="hex-empty" points="${pts}"></polygon></g>`; }
+    else{ const def=BYID[t.id]; const v=res.values[cell.key]; const cls=v>t.base?'up':(v<t.base?'down':'');
+      svg+=`<g class="hexgroup place placed" data-filled="${cell.key}">
+        <polygon class="hex-tile" points="${pts}" fill="url(#grad-${t.c})"></polygon>
+        <polygon class="hex-gloss" points="${glossPoints(cell.x,cell.y)}"></polygon>
+        <text class="hex-emoji" x="${cell.x}" y="${cell.y-7}">${def.e}</text>
+        <text class="hex-val ${cls}" x="${cell.x}" y="${cell.y+15}">${v}</text></g>`; }
+  }
+  if(aff) svg+=`<g class="afflayer">${aff}</g>`;   // 強調は全マスの上に重ねる
+  board_el.innerHTML=svg;
+}
+function elChip(c){ return `<span class="elchip" style="background:${COLORS[c].g}">${COLORS[c].jp}</span>`; }
+function puBadge(n){ return `<span class="pupill num">${n}</span>`; }
+function colorEl(text){ if(!text) return text;
+  for(const c in COLORS){ text = text.split(COLORS[c].jp).join(`<span class="elname" style="color:${COLORS[c].g}">${COLORS[c].jp}</span>`); }
+  return text; }
+function cardHTML(id,i,extra){const t=BYID[id]; const sel=selected===i?' sel':'';
+  return `<div class="card rr-${t.r}${sel}${extra||''}" data-card="${i}"><div class="band b-${t.c}"></div>
+    <div class="top">${elChip(t.c)}<span class="emoji">${t.e}</span><span class="coin num">${t.base}</span></div>
+    <div class="name">${t.n}</div>${t.d?`<div class="desc">${colorEl(t.d)}</div>`:''}</div>`;}
+function renderHand(){
+  document.getElementById('hand').innerHTML=hand.map((id,i)=>cardHTML(id,i, i===handDealIdx?' deal':(i===handLeaveIdx?' leave':''))).join('');
+  handDealIdx=null; handLeaveIdx=null;
+  const rb=document.getElementById('rerollBtn'); document.getElementById('rerollN').textContent=rerolls;
+  rb.disabled = rerolls<=0 || drawPile.length===0 || hand.length===0 || rerollBusy;
+  const pc=document.getElementById('placeN'); if(pc) pc.textContent=placesLeft;
+  const hint=document.getElementById('hint');
+  if(rerollBusy) hint.innerHTML='引き直し中…';
+  else if(placesLeft<=0) hint.innerHTML='投入上限に到達。<b>クリア</b>するか盤面を確認。';
+  else hint.innerHTML = selected!=null ? '<b>'+BYID[hand[selected]].n+'</b> をどこに置く？光るマスをタップ。' : '試薬を選び、光るマスをタップ。';
+}
+function renderModBtn(){
+  const ids=run.stage.mods; const btn=document.getElementById('modBtn');
+  if(run.stage.trial){ const nd=ids.filter(id=>DEBBY[id]).length; btn.innerHTML='⚠️<span class="badge">'+nd+'</span>'; btn.classList.add('trial'); }
+  else { btn.textContent=EFFBY[ids[0]].e; btn.classList.remove('trial'); }
+}
+function updateTopbar(){
+  document.getElementById('stageNo').textContent=run?run.stageNum:1;
+  document.getElementById('coinN').textContent=run?run.coins:0;
+  const prog=document.getElementById('prog');
+  if(phase==='play'){ prog.style.visibility='visible';
+    const sc=lastValues?lastValues.total:0; const s=document.getElementById('scoreN');
+    s.textContent=sc; s.classList.toggle('hit', sc>=run.target); document.getElementById('targetN').textContent=run.target;
+  } else prog.style.visibility='hidden';
+}
+function renderPlay(){ renderBoard(); renderHand(); renderModBtn(); updateTopbar();
+  document.getElementById('clearBtn').hidden=!run.cleared; }
+
+/* ===================== INTERACTION ===================== */
+board_el.addEventListener('click', e=>{
+  if(phase!=='play'||rerollBusy)return; const g=e.target.closest('.hexgroup'); if(!g)return;
+  if(g.dataset.filled){ openDetail(g.dataset.filled); return; }
+  if(g.dataset.empty && selected!=null) place(g.dataset.empty);
+});
+document.getElementById('hand').addEventListener('click', e=>{
+  if(phase!=='play'||rerollBusy)return; const c=e.target.closest('.card'); if(!c)return;
+  const i=+c.dataset.card; selected=(selected===i)?null:i; renderPlay();
+});
+function place(k){
+  if(placesLeft<=0) return;
+  const before = lastValues ? Object.assign({}, lastValues.values) : {};
+  const id=hand[selected]; const t=BYID[id]; const [q,r]=k.split(',').map(Number);
+  board.set(k,{id, c:t.c, base:t.base, q, r}); hand.splice(selected,1); selected=null; placesLeft--; refill();
+  renderPlay(); checkStageState();
+  if(phase==='play') flashDeltas(before, k);
+}
+// 置いたことで純度が増減した既存タイルの上に +X / -X を一瞬表示
+function flashDeltas(before, placedKey){
+  if(!lastValues) return;
+  const now=lastValues.values; let fx='';
+  for(const cell of CELLS){ const k=cell.key;
+    if(!board.has(k) || k===placedKey || !(k in before)) continue;
+    const d=(now[k]||0)-(before[k]||0); if(d===0) continue;
+    fx+=`<text class="deltafx ${d>0?'pos':'neg'}" x="${cell.x}" y="${cell.y-16}">${d>0?'+':''}${d}</text>`;
+  }
+  if(fx) board_el.innerHTML += `<g class="fxlayer">${fx}</g>`;
+}
+document.getElementById('rerollBtn').addEventListener('click', ()=>{
+  if(phase!=='play'||rerolls<=0||drawPile.length===0||rerollBusy)return;
+  if(selected==null){ document.getElementById('hint').innerHTML='捨てる試薬を選んでから <b>引き直し</b>。'; return; }
+  rerollBusy=true; const idx=selected; selected=null; handLeaveIdx=idx; renderPlay();
+  setTimeout(()=>{
+    drawPile.unshift(hand[idx]); hand.splice(idx,1); rerolls--; refill();
+    handDealIdx=hand.length-1; rerollBusy=false; renderPlay();
+  }, 230);
+});
+document.getElementById('clearBtn').addEventListener('click', ()=>{ if(run.cleared) finishStage(); });
+document.getElementById('modBtn').addEventListener('click', ()=>{ if(phase==='play') openEffects(); });
+function checkStageState(){
+  const score=lastValues.total, empty=CELLS.length-board.size;
+  if(score>=run.target){ run.cleared=true; document.getElementById('clearBtn').hidden=false; }
+  const canPlace = empty>0 && hand.length>0 && placesLeft>0;
+  if(!canPlace){ if(score>=run.target) finishStage(); else gameOver(); }
+}
+
+/* ===================== STAGE END / ECONOMY ===================== */
+function finishStage(){
+  const res=compute(); const score=res.total; const mods=activeMods();
+  const empty=CELLS.length-board.size; const colors=new Set(); for(const t of board.values()) colors.add(t.c);
+  const left=Math.max(0, placesLeft);
+  let bmult=prodRelic('overshootMult'); for(const m of mods) if(m.overshootMult) bmult*=m.overshootMult;
+  let bonus=Math.round(left*COIN_PER_LEFT*bmult);
+  let modCoin=0; for(const m of mods) if(m.coinDelta) modCoin+=m.coinDelta({empty,count:board.size,distinct:colors.size,left});
+  let relicCoin=0;
+  for(const rel of relicList()){ if(rel.coinClear) relicCoin += (typeof rel.coinClear==='function'
+      ? rel.coinClear({score, target:run.target, coins:run.coins, empty, count:board.size, left}) : rel.coinClear); }
+  const base=clearBase(run.stageNum);
+  let coins=Math.max(0, base+bonus+modCoin+relicCoin);
+  run.coins+=coins; run.totalScore+=score; run.stagesCleared++;
+  run.lastReward={score, target:run.target, left, bonus, base, modCoin, relicCoin, coins, trial:run.stage.trial};
+  if(run.stage.trial){ run.relicChoices=shuffle(RELICS.filter(r=>!run.relics.includes(r.id))).slice(0,3).map(r=>r.id); }
+  genShop(); setPhase('reward');
+}
+function gameOver(){ run.finalScore = run.totalScore + run.stagesCleared*40; setPhase('gameover'); }
+function pickCardWeighted(exclude){
+  const pool=CATALOG.filter(t=>t.r!=='basic' && t.r!=='impurity' && !exclude.has(t.id));
+  const tot=pool.reduce((s,t)=>s+RARITY[t.r].w,0); let n=Math.random()*tot;
+  for(const t of pool){ if((n-=RARITY[t.r].w)<0) return t; } return pool[0];
+}
+function pickRareWeighted(exclude){
+  const pool=CATALOG.filter(t=>(t.r==='uncommon'||t.r==='rare') && !exclude.has(t.id));
+  if(!pool.length) return null;
+  const tot=pool.reduce((s,t)=>s+RARITY[t.r].w,0); let n=Math.random()*tot;
+  for(const t of pool){ if((n-=RARITY[t.r].w)<0) return t; } return pool[0];
+}
+function pickCards(){
+  const ex=new Set(),out=[];
+  for(let i=0;i<3;i++){const t=pickCardWeighted(ex); ex.add(t.id); out.push({id:t.id,price:priceOf(t),sold:false});}
+  const t4=pickRareWeighted(ex); if(t4){ ex.add(t4.id); out.push({id:t4.id,price:priceOf(t4),sold:false,rareSlot:true}); }
+  return out;
+}
+function genShop(){ run.shopItems=pickCards(); run.shopRerollCost=3; }
+function effPrice(p){ return Math.max(1, p - sumRelic('shopDiscount')); }
+function effRemoveCost(){ const m=prodRelic('removeMult'); return Math.max(5, Math.round(run.removeCost*m)); }
+
+/* ===================== OVERLAY PHASES ===================== */
+const overlay=document.getElementById('overlay');
+function setPhase(p){ phase=p; document.body.dataset.phase=p;
+  if(p==='play'){ overlay.classList.remove('on'); renderPlay(); }
+  else{ overlay.classList.add('on'); overlay.innerHTML=({intro:introHTML,select:selectHTML,reward:rewardHTML,shop:shopHTML,gameover:gameoverHTML})[p](); }
+  updateTopbar();
+}
+function peekBar(){ return `<div class="peekrow"><button class="deckpeek" data-action="open-deck">🗂️ 調合帳 ${run.deck.length}枚 ・ 錬金器具 ${run.relics.length}個</button></div>`; }
+
+function introHTML(){return `<div class="wrap">
+  <div style="height:8px"></div>
+  <div class="htitle">アルケミスト</div>
+  <div class="hsub">あなたはしがない錬金術師。ハプニングに対処しながら、錬金術師としての仕事を全うしよう。</div>
+  <div style="height:20px"></div>
+  <div class="btnrow"><button class="btn primary wide" data-action="start-run">調合をはじめる</button></div>
+  <div style="height:8px"></div>
+  <div class="btnrow"><button class="btn ghost wide" data-action="help">遊び方をみる</button></div></div>`;}
+
+function optHTML(o,i){
+  if(o.trial){
+    const modM=EFFBY[o.mods[0]], debM=EFFBY[o.mods[1]];
+    return `<div class="trialcard" data-action="pick-stage" data-arg="${i}">
+      <div class="th"><div class="tt">⚠️ 試練</div><div class="tg"><div class="n num">${o.target}</div><div class="l">目標純度</div></div></div>
+      <div class="deb ok"><span class="e">${modM.e}</span><div><b>${modM.n}</b><div class="ds">${colorEl(modM.d)}</div></div></div>
+      <div class="deb"><span class="e">${debM.e}</span><div><b>${debM.n}</b><span class="dtag">デバフ</span><div class="ds">${colorEl(debM.d)}</div></div></div>
+      <div class="trialreward">🏆 クリア報酬：錬金器具を3つの中から1つ獲得</div></div>`;
+  }
+  const m=EFFBY[o.mods[0]];
+  return `<div class="opt" data-action="pick-stage" data-arg="${i}"><div class="em">${m.e}</div>
+    <div class="body"><div class="nm">${m.n}</div><div class="ds">${colorEl(m.d)}</div></div>
+    <div class="tg"><div class="n num">${o.target}</div><div class="l">目標純度</div></div></div>`;
+}
+function selectHTML(){
+  const items=run.stageOptions.map((o,i)=>optHTML(o,i)).join('');
+  const sub = run.isTrial
+    ? '今回は<b style="color:var(--danger)">試練</b>が出現中。挑めば錬金器具を狙えるが、通常の工程を選んで回避してもよい。'
+    : '工程ごとに特殊な条件と目標純度が異なる。手持ちの調合帳と錬金器具に合う道を選ぼう。';
+  return `<div class="wrap">${peekBar()}<div class="eyebrow${run.isTrial?' t':''}">stage ${run.stageNum}${run.isTrial?' · trial available':''}</div>
+    <div class="htitle">次の工程を選べ</div><div class="hsub">${sub}</div>
+    <div class="rewardnote">クリアの基本報酬 <b>🪙${clearBase(run.stageNum)}</b> <span class="muted">＋手際ボーナス（残り投入数×${COIN_PER_LEFT}）</span></div>
+    <div class="opts">${items}</div></div>`;
+}
+function rewardHTML(){
+  const r=run.lastReward;
+  const modRow=r.modCoin!==0?`<div class="row"><span>工程効果</span><b class="${r.modCoin>0?'pos':'neg'}">${r.modCoin>0?'+':''}${r.modCoin}</b></div>`:'';
+  const relRow=r.relicCoin!==0?`<div class="row"><span>錬金器具効果</span><b class="${r.relicCoin>0?'pos':'neg'}">${r.relicCoin>0?'+':''}${r.relicCoin}</b></div>`:'';
+  const recap=`<div class="recap">
+      <div class="row"><span>調合品の売却（基本）</span><b>+${r.base}</b></div>
+      <div class="row"><span>手際ボーナス（残り${r.left}）</span><b class="pos">+${r.bonus}</b></div>${modRow}${relRow}
+      <div class="row grand"><span>獲得コイン</span><span class="n">+${r.coins}</span></div></div>`;
+  if(r.trial){
+    let block;
+    if(run.relicChoices.length){
+      const choices=run.relicChoices.map((id,i)=>{const rel=RELBY[id];
+        return `<div class="relpick" data-action="pick-relic" data-arg="${i}"><div class="mini">${rel.e}</div>
+          <div class="info"><div class="nm">${rel.n}</div><div class="ds">${rel.d}</div></div></div>`;}).join('');
+      block=`<div class="seclabel rel">錬金器具を1つ選ぶ</div><div class="relchoice">${choices}</div>`;
+    } else {
+      block=`<div class="hsub">獲得できる錬金器具は残っていない。</div><div class="btnrow"><button class="btn primary wide" data-action="to-shop">ショップへ</button></div>`;
+    }
+    return `<div class="wrap">${peekBar()}<div class="eyebrow t">trial cleared</div><div class="htitle">試練突破</div>
+      <div class="hsub">目標純度 ${r.target} に対して <b style="color:var(--gold-soft)">純度${r.score}</b>。</div>${recap}${block}</div>`;
+  }
+  return `<div class="wrap"><div class="eyebrow">stage ${run.stageNum} cleared</div><div class="htitle">調合成功</div>
+    <div class="hsub">目標純度 ${r.target} に対して <b style="color:var(--gold-soft)">純度${r.score}</b>（投入を ${r.left} 枚温存）。調合品を売却した。</div>${recap}
+    <div class="btnrow"><button class="btn primary wide" data-action="to-shop">ショップへ 🪙 ${run.coins}</button></div></div>`;
+}
+function shopHTML(){
+  const cards=run.shopItems.map((it,i)=>{const t=BYID[it.id]; const p=effPrice(it.price); const afford=run.coins>=p;
+    return `<div class="shopitem rr-${t.r}${it.sold?' sold':''}">
+      <div class="mini" style="background:radial-gradient(circle at 38% 28%, ${COLORS[t.c].g}, ${COLORS[t.c].f})">${t.e}</div>
+      <div class="info"><div class="nm">${puBadge(t.base)} ${t.n} ${elChip(t.c)} <span class="rb rb-${t.r}">${RARITY[t.r].jp}</span></div>${t.d?`<div class="ds">${colorEl(t.d)}</div>`:''}</div>
+      <button class="buy" data-action="buy" data-arg="${i}" ${(it.sold||!afford)?'disabled':''}><span class="l">🪙</span>${it.sold?'済':p}</button></div>`;}).join('');
+  return `<div class="wrap">${peekBar()}<div class="eyebrow">apothecary · 🪙 ${run.coins}</div><div class="htitle">ショップ</div>
+    <div class="hsub">試薬を買って調合帳を強化。買ったものは次の工程から有効。</div>
+    <div class="seclabel">試薬</div><div class="shopgrid">${cards}</div>
+    <div style="display:flex; justify-content:center; margin:4px 0 8px">
+      <button class="btn" data-action="shop-reroll" ${run.coins>=run.shopRerollCost?'':'disabled'}>品揃え更新 🪙${run.shopRerollCost}</button></div>
+    <div class="seclabel">調合帳の整理</div>
+    <button class="btn ghost wide rmbtn" data-action="open-remove" ${(run.coins>=effRemoveCost()&&run.deck.length>1)?'':'disabled'}>🗑️ 試薬を廃棄する　<span class="muted">🪙${effRemoveCost()}〜</span></button>
+    <div class="btnrow" style="margin-top:14px">
+      <button class="btn primary wide" data-action="leave-shop">次の工程へ →</button></div>
+    <div style="height:10px"></div><div class="hsub" style="margin:0">調合帳 ${run.deck.length}枚 ・ 錬金器具 ${run.relics.length}個</div></div>`;
+}
+function gameoverHTML(){const r=run;
+  const tiers=[[600,'💎','伝説の錬金術師'],[380,'🏆','熟練の調合師'],[230,'⭐','一人前の薬師'],[110,'⚗️','見習い錬金術師'],[0,'🧪','駆け出しの弟子']];
+  const [,em,title]=tiers.find(t=>r.finalScore>=t[0]);
+  const hist = (r.history||[]).map(h=>{
+    const m0=EFFBY[h.mods[0]];
+    const label = h.trial
+      ? `<span class="he">⚠️</span><b>試練</b> <span class="muted">${m0?m0.n:''}＋${EFFBY[h.mods[1]]?EFFBY[h.mods[1]].n:''}</span>`
+      : (h.mods[0]==='plain' ? `<span class="he">⚗️</span>効果なし` : `<span class="he">${m0?m0.e:'⚗️'}</span>${m0?m0.n:''}`);
+    const cleared = h.n<=r.stagesCleared;
+    return `<div class="histrow"><span class="hn">工程${h.n}</span><span class="hl">${label}</span><span class="ht ${cleared?'ok':'ng'}">${cleared?'突破':'未達'} <span class="num">目標${h.target}</span></span></div>`;
+  }).join('');
+  return `<div class="wrap"><div class="eyebrow">run over</div><div class="htitle">リザルト</div>
+    <div class="final"><span class="n num">${r.finalScore}</span></div>
+    <div class="rankline">${em} <b>${title}</b></div>
+    <div class="recap">
+      <div class="row"><span>完了した工程</span><b>${r.stagesCleared}</b></div>
+      <div class="row"><span>累計純度</span><b>${r.totalScore}</b></div>
+      <div class="row"><span>深度ボーナス</span><b>+${r.stagesCleared*40}</b></div>
+      <div class="row grand"><span>最終スコア</span><span class="n">${r.finalScore}</span></div></div>
+    <div class="btnrow"><button class="btn ghost wide" data-action="open-deck">🗂️ 調合帳を見る（${r.deck.length}枚）</button></div>
+    <div class="seclabel" style="margin-top:14px">挑んだ工程</div>
+    <div class="histlist">${hist||'<div class="muted" style="font-size:12px">記録なし</div>'}</div>
+    <div class="btnrow" style="margin-top:14px"><button class="btn primary wide" data-action="restart">再び調合する</button></div></div>`;
+}
+overlay.addEventListener('click', e=>{
+  const el=e.target.closest('[data-action]'); if(!el)return; const a=el.dataset.action, arg=el.dataset.arg;
+  if(a==='start-run') newRun();
+  else if(a==='help') openScrim('helpScrim');
+  else if(a==='open-deck') openDeck();
+  else if(a==='open-remove') openRemove();
+  else if(a==='pick-stage') startStage(run.stageOptions[+arg]);
+  else if(a==='to-shop') setPhase('shop');
+  else if(a==='pick-relic'){ const id=run.relicChoices[+arg]; if(id && !run.relics.includes(id)){ run.relics.push(id); run.relicChoices=[]; setPhase('shop'); } }
+  else if(a==='buy'){ const it=run.shopItems[+arg]; const p=effPrice(it.price);
+    if(!it.sold && run.coins>=p){ run.coins-=p; run.deck.push(it.id); it.sold=true; overlay.innerHTML=shopHTML(); updateTopbar(); } }
+  else if(a==='shop-reroll'){ if(run.coins>=run.shopRerollCost){ run.coins-=run.shopRerollCost; run.shopRerollCost+=2; run.shopItems=pickCards(); overlay.innerHTML=shopHTML(); updateTopbar(); } }
+  else if(a==='leave-shop'){ run.stageNum++; genStageOptions(); setPhase('select'); }
+  else if(a==='restart') newRun();
+});
+
+/* ===================== MODALS ===================== */
+function signed(n){return (n>=0?'+':'')+n;}
+function openDetail(k){
+  const t=board.get(k), def=BYID[t.id], V=lastValues;
+  const base=t.base, a=V.aura[k]||0, s=V.self[k]||0, m=V.mult[k]||1, mb=V.modB[k]||0, rb=V.relB[k]||0;
+  let rows;
+  if(def.copy){
+    rows=[`<div class="row"><span>隣接の最高純度をコピー</span><b class="pos">${V.values[k]}</b></div>`];
+  } else {
+    rows=[`<div class="row"><span>基本</span><b>${base}</b></div>`];
+    if(a!==0) rows.push(`<div class="row"><span>隣からの補正</span><b class="${a>0?'pos':'neg'}">${signed(a)}</b></div>`);
+    if(s!==0) rows.push(`<div class="row"><span>自身の効果</span><b class="${s>0?'pos':'neg'}">${signed(s)}</b></div>`);
+    if(mb!==0) rows.push(`<div class="row"><span>工程効果</span><b class="${mb>0?'pos':'neg'}">${signed(mb)}</b></div>`);
+    if(rb!==0) rows.push(`<div class="row"><span>錬金器具効果</span><b class="${rb>0?'pos':'neg'}">${signed(rb)}</b></div>`);
+    if(m!==1) rows.push(`<div class="row"><span>工程倍率</span><b class="${m>=1?'pos':'neg'}">×${m}</b></div>`);
+  }
+  document.getElementById('detailSheet').innerHTML=`
+    <h2><span class="em">${def.e}</span>${def.n}</h2><div class="tag">${elChip(t.c)} ${puBadge(base)} ・ ${RARITY[def.r].jp}</div>
+    ${def.d?`<div class="effect">${colorEl(def.d)}</div>`:''}
+    <div class="bd">${rows.join('')}<div class="row total"><span>現在の純度</span><span class="n">${V.values[k]}</span></div></div>
+    <button class="close" data-close="detailScrim">とじる</button>`;
+  openScrim('detailScrim');
+}
+function openEffects(){
+  const ids=run.stage.mods;
+  const title=run.stage.trial?'試練':'工程効果';
+  const list=ids.map(id=>{const m=EFFBY[id]; const isDeb=!!DEBBY[id];
+    return `<div class="effrow"><span class="e">${m.e}</span><div><b>${m.n}</b>${isDeb?'<span class="dtag">デバフ</span>':''}<div class="ds">${colorEl(m.d)}</div></div></div>`;}).join('');
+  document.getElementById('effSheet').innerHTML=`<h2><span class="em">${run.stage.trial?'⚠️':EFFBY[ids[0]].e}</span>${title}</h2>
+    <div class="tag">目標純度 ${run.target} ・ 投入上限 ${placeLimit} ・ 手札 ${handSize} ・ 引き直し ${rerolls}</div>${list}
+    <button class="close" data-close="effScrim">とじる</button>`;
+  openScrim('effScrim');
+}
+function openDeck(){
+  if(!run)return;
+  const counts={}; run.deck.forEach(id=>counts[id]=(counts[id]||0)+1);
+  const entries=Object.keys(counts).map(id=>({t:BYID[id],ct:counts[id]})).sort((a,b)=>a.t.base-b.t.base || a.t.n.localeCompare(b.t.n,'ja'));
+  const cards=entries.map(({t,ct})=>`<div class="deckcard rr-${t.r}${t.r==='impurity'?' imp':''}" data-info-card="${t.id}"><div class="band b-${t.c}"></div>
+    <div class="dc-top"><span class="em">${t.e}</span>${puBadge(t.base)}<span class="ct num">×${ct}</span></div>
+    <div class="nm">${elChip(t.c)} ${t.n}</div></div>`).join('');
+  const relics = run.relics.length
+    ? `<div class="rellist">`+run.relics.map(id=>{const r=RELBY[id];
+        return `<div class="relline" data-info-relic="${id}"><span class="re">${r.e}</span><div><b>${r.n}</b><div class="rd">${r.d}</div></div></div>`;}).join('')+`</div>`
+    : '<div class="muted" style="font-size:12px">まだ無し（試練を突破すると獲得）</div>';
+  const live = (phase==='play');
+  const pHand = live? handSize : Math.max(1,4+sumRelic('handBonus'));
+  const pRer  = live? rerolls  : Math.max(0,2+sumRelic('rerollBonus'));
+  const pPlc  = live? placeLimit : Math.max(1,PLACE_BASE+sumRelic('placeBonus'));
+  const placeCell = live ? `残り ${placesLeft} / ${placeLimit}` : `${pPlc}`;
+  const stats=`<div class="dsec">パラメータ${live?'（現工程）':'（基本値・工程効果で増減）'}</div>
+    <div class="statgrid">
+      <div class="statbox"><div class="sv num">${placeCell}</div><div class="sl">投入できる数</div></div>
+      <div class="statbox"><div class="sv num">${pHand}</div><div class="sl">手札</div></div>
+      <div class="statbox"><div class="sv num">${live?rerolls:pRer}</div><div class="sl">引き直し</div></div>
+    </div>`;
+  document.getElementById('deckSheet').innerHTML=`
+    <h2><span class="em">🗂️</span>調合帳 <span class="muted num" style="font-size:14px">${run.deck.length}枚</span></h2>
+    ${stats}
+    <div class="dsec rel">錬金器具 ${run.relics.length}個</div>${relics}
+    <div class="dsec">試薬 ${run.deck.length}枚</div><div class="deckgrid">${cards}</div>
+    <div class="infohint">試薬・錬金器具をタップで詳細を表示</div>
+    <button class="close" data-close="deckScrim">とじる</button>`;
+  openScrim('deckScrim');
+}
+function openCardInfo(id){
+  const t=BYID[id]; const ct=run?run.deck.filter(x=>x===id).length:0;
+  const rows=[];
+  rows.push(t.r==='impurity'
+    ? `<div class="row"><span>相場</span><b>購入不可・廃棄対象</b></div>`
+    : t.r==='basic'
+    ? `<div class="row"><span>相場</span><b>初期カード（ショップ非販売）</b></div>`
+    : `<div class="row"><span>相場</span><b>🪙${priceOf(t)}</b></div>`);
+  if(run) rows.push(`<div class="row"><span>調合帳内の枚数</span><b>×${ct}</b></div>`);
+  document.getElementById('infoSheet').innerHTML=`
+    <h2><span class="em">${t.e}</span>${t.n}</h2><div class="tag">${elChip(t.c)} ${puBadge(t.base)} ${RARITY[t.r].jp}</div>
+    ${t.d?`<div class="effect">${colorEl(t.d)}</div>`:''}<div class="bd">${rows.join('')}</div>
+    <button class="close" data-close="infoScrim">とじる</button>`;
+  openScrim('infoScrim');
+}
+function openRemove(){
+  const counts={}; run.deck.forEach(id=>counts[id]=(counts[id]||0)+1);
+  const cost=effRemoveCost(); const afford=run.coins>=cost && run.deck.length>1;
+  const entries=Object.keys(counts).map(id=>({t:BYID[id],ct:counts[id]}))
+    .sort((a,b)=>(a.t.r==='impurity'?0:1)-(b.t.r==='impurity'?0:1) || a.t.base-b.t.base || a.t.n.localeCompare(b.t.n,'ja'));
+  const rows=entries.map(({t,ct})=>`<div class="rmrow${t.r==='impurity'?' imp':''}">
+      <span class="rmem">${t.e}</span><div><div class="rmnm">${t.n}${t.r==='impurity'?' <span class="rb rb-impurity">不純物</span>':''}</div><div class="rmct">×${ct}</div></div>
+      <button class="rmx" data-remove="${t.id}" ${afford?'':'disabled'}>廃棄 🪙${cost}</button></div>`).join('');
+  document.getElementById('removeSheet').innerHTML=`
+    <h2><span class="em">🗑️</span>試薬の廃棄</h2>
+    <div class="tag">所持 🪙${run.coins} ・ 次の廃棄コスト 🪙${cost}</div>
+    <div class="infohint" style="text-align:left;margin:0 0 12px">廃棄するごとにコストが上がる。不純物の掃除に。</div>
+    <div class="rmlist">${rows}</div>
+    <button class="close" data-close="removeScrim">とじる</button>`;
+  openScrim('removeScrim');
+}
+function doRemove(id){
+  const cost=effRemoveCost();
+  if(run.coins<cost || run.deck.length<=1) return;
+  const idx=run.deck.indexOf(id); if(idx<0) return;
+  run.deck.splice(idx,1); run.coins-=cost; run.removeCost+=5;
+  openRemove(); if(phase==='shop') overlay.innerHTML=shopHTML(); updateTopbar();
+}
+function openRelicInfo(id){
+  const r=RELBY[id];
+  document.getElementById('infoSheet').innerHTML=`
+    <h2><span class="em">${r.e}</span>${r.n}</h2><div class="tag">錬金器具・永続効果</div>
+    <div class="effect">${colorEl(r.d)}</div>
+    <button class="close" data-close="infoScrim">とじる</button>`;
+  openScrim('infoScrim');
+}
+
+/* ===================== SCRIM HELPERS ===================== */
+function openScrim(id){document.getElementById(id).classList.add('on');}
+function closeScrim(id){document.getElementById(id).classList.remove('on');}
+document.addEventListener('click', e=>{
+  const b=e.target.closest('[data-close]'); if(b){ closeScrim(b.dataset.close); return; }
+  const ic=e.target.closest('[data-info-card]'); if(ic){ openCardInfo(ic.dataset.infoCard); return; }
+  const ir=e.target.closest('[data-info-relic]'); if(ir){ openRelicInfo(ir.dataset.infoRelic); return; }
+  const rm=e.target.closest('[data-remove]'); if(rm){ doRemove(rm.dataset.remove); return; }
+  if(e.target.classList.contains('scrim')) e.target.classList.remove('on');
+});
+document.getElementById('helpBtn').addEventListener('click',()=>openScrim('helpScrim'));
+document.getElementById('deckBtn').addEventListener('click', openDeck);
+
+setPhase('intro');
+</script>
+</body>
+</html>
