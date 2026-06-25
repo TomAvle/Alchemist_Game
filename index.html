@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>アルケミスト v0.11</title>
+<title>アルケミスト v0.13</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
@@ -26,6 +26,7 @@
   }
   .num{font-family:"Cormorant Garamond",serif; font-variant-numeric:lining-nums;}
   .muted{color:var(--muted);}
+  #device{flex:1 1 auto; min-height:0; min-width:0; width:100%; display:flex; flex-direction:column;}
 
   header{flex:0 0 auto; padding:9px 12px 8px; display:flex; align-items:center; gap:8px;
     border-bottom:1px solid var(--line); background:linear-gradient(180deg, rgba(20,28,42,.7), rgba(20,28,42,0));}
@@ -268,11 +269,39 @@
   .statbox{background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:11px; padding:9px 6px; text-align:center;}
   .statbox .sv{font-size:17px; font-weight:700; color:var(--gold-soft);}
   .statbox .sl{font-size:9.5px; color:var(--muted); margin-top:3px; letter-spacing:.04em;}
+
+  /* ===== デスクトップ最適化：横長画面では端末パネルとして中央に表示（モバイルは従来どおり） ===== */
+  @media (min-width:760px){
+    body{ justify-content:center; align-items:center; padding:28px;
+      background:
+        radial-gradient(1400px 900px at 50% -8%, #2c1f12 0%, rgba(44,31,18,0) 55%),
+        radial-gradient(1100px 700px at 100% 112%, #1d150d 0%, rgba(29,21,13,0) 55%), var(--bg); }
+    #device{ flex:0 0 auto; width:468px; height:min(880px, calc(100dvh - 56px));
+      border:1px solid rgba(217,164,65,.18); border-radius:26px; overflow:hidden;
+      background:linear-gradient(180deg,#10161f,#0b0f16);
+      box-shadow:0 30px 80px rgba(0,0,0,.6), 0 2px 0 rgba(255,255,255,.04) inset; }
+    main::before{ width:420px; height:420px; }
+    main::after{ width:320px; height:320px; }
+
+    /* メニュー/ショップ等のオーバーレイも同じ枠の中に収める */
+    .overlay{ background:transparent; padding:28px; }
+    .overlay.on{ display:flex; align-items:center; justify-content:center; }
+    .overlay .wrap{ width:468px; max-width:468px; height:min(880px, calc(100dvh - 56px)); min-height:0;
+      overflow-y:auto; -webkit-overflow-scrolling:touch;
+      border:1px solid rgba(217,164,65,.18); border-radius:26px;
+      background:radial-gradient(900px 600px at 50% 0%, #16223a 0%, #0c111a 70%);
+      box-shadow:0 30px 80px rgba(0,0,0,.6);
+      padding:24px 20px calc(24px + env(safe-area-inset-bottom)); }
+
+    /* モーダルのシートを少し広めに */
+    .sheet{ max-width:400px; }
+  }
 </style>
 </head>
 <body data-phase="intro">
+  <div id="device">
   <header>
-    <div class="brand"><span class="ttl">アルケミスト</span><span class="stg">工程 <span id="stageNo" class="num">1</span> · v0.11</span></div>
+    <div class="brand"><span class="ttl">アルケミスト</span><span class="stg">工程 <span id="stageNo" class="num">1</span> · v0.13</span></div>
     <button class="icon-btn" id="deckBtn" title="調合帳">📜</button>
     <div class="coins"><span class="c">🪙</span><span id="coinN" class="num">0</span></div>
     <div class="prog" id="prog"><span class="lab">純度 / 目標純度</span>
@@ -294,6 +323,7 @@
     </div>
     <div class="hand" id="hand"></div>
   </div>
+  </div><!-- /#device -->
 
   <div class="overlay" id="overlay"></div>
 
@@ -450,6 +480,7 @@ const CATALOG = [
   {id:'arcanum',n:'大いなる秘儀',e:'🌀',c:'purple',base:0,r:'rare',d:'隣接する属性の種類1つにつき +4。',self:x=>4*x.adjColorsDistinct},
   {id:'spectrum',n:'万華の霊',e:'🌌',c:'purple',base:0,r:'rare',d:'盤面に存在する属性の種類1つにつき +6。',self:x=>6*x.colorsDistinct},
   {id:'catalyst',n:'触媒結晶',e:'✴️',c:'purple',base:1,r:'rare',d:'最終純度が ×1.12。複数で加算し、タイル由来は合計 ×1.5 まで。',totalMultBonus:0.12},
+  {id:'ampsalt',n:'増幅の塩',e:'🧿',c:'gray',base:-10,r:'rare',d:'隣接する全試薬の純度を2倍する。',adjMult:2},
   /* --- 不純物（ショップ非販売。デバフ/工程効果でデッキに混入）--- */
   /* imp:'temp' = その工程で消える / imp:'perm' = 廃棄しない限り残る */
   {id:'sludge',n:'ヘドロ',e:'🟤',c:'gray',base:-1,r:'impurity',imp:'temp',d:'特殊効果なし。純度-1。'},
@@ -461,7 +492,20 @@ const CATALOG = [
   {id:'leaddross',n:'鉛滓',e:'🪨',c:'gray',base:-3,r:'impurity',imp:'temp',d:'特殊効果なし。純度-3。'},
 ];
 const BYID = Object.fromEntries(CATALOG.map(t=>[t.id,t]));
-function priceOf(t){ const R=RARITY[t.r]; return R.base + Math.round(t.base*R.mul); }
+// 代表的な盤面状況での「効果の純度換算値」を概算（相場算出に使用）
+function estimateEffect(t){
+  const mk=v=>new Proxy({},{get:()=>v});
+  const base={ adj:3, adjEmpty:2, adjMaxBase:5, adjColorsDistinct:2, colorsDistinct:3,
+    adjByColor:mk(2), byColor:mk(3), byBase:mk(2) };
+  let v=0;
+  if(t.self){ try{ const a=t.self(Object.assign({onEdge:true},base)); const b=t.self(Object.assign({onEdge:false},base)); v+=(a+b)/2; }catch(e){} }
+  if(t.aura){ try{ for(const nb of [{c:t.c},{c:t.c},{c:'gray'}]) v+=t.aura(nb); }catch(e){} }      // 隣接3枚ぶん
+  if(t.adjMult){ v+=(t.adjMult-1)*3*5; }       // 隣接3枚を(mult-1)倍ぶん押し上げ（隣接平均~5）
+  if(t.totalMultBonus){ v+=t.totalMultBonus*45; }
+  if(t.copy){ v+=8; }
+  return Math.round(v);
+}
+function priceOf(t){ const R=RARITY[t.r]; const power=t.base + (t._ev||0)*0.7; return R.base + Math.round(Math.max(0,power)*R.mul); }
 
 /* ===================== RELICS (permanent reward, 24) ===================== */
 const RELICS = [
@@ -480,18 +524,21 @@ const RELICS = [
   {id:'metronome',n:'律動の振り子',e:'🎶',d:'外周マスの試薬が +3点。',tileBonus:(t,i)=>i.onEdge?3:0},
   {id:'resonant',n:'共振の水晶',e:'💠',d:'置いた試薬1枚につき +1点。',flatBonus:s=>s.count},
   {id:'completion',n:'完全調合の書',e:'🧩',d:'調合盤を全て埋めるとクリア時 +30点。',flatBonus:s=>s.empty===0?30:0},
-  {id:'goldenratio',n:'黄金比の定規',e:'📐',d:'最終純度が ×1.25。',totalMult:1.25},
   {id:'glove',n:'錬金手袋',e:'🧤',d:'手札が +1枚。',handBonus:1},
   {id:'foresight',n:'予見の水晶球',e:'👁️',d:'各工程の引き直しが +3回。',rerollBonus:3},
   {id:'piggy',n:'へそくり壺',e:'🐷',d:'工程クリアごとに +5コイン。',coinClear:()=>5},
   {id:'investor',n:'投資家の指輪',e:'💍',d:'クリア時、所持コインの15%を利息として得る。',coinClear:i=>Math.floor(i.coins*0.15)},
-  {id:'hoard',n:'秘蔵の宝棚',e:'💎',d:'クリア時、残った投入可能数1つにつき +1コイン。',coinClear:i=>i.left},
+  {id:'hoard',n:'秘蔵の宝棚',e:'💎',d:'クリア時、残った引き直し数1つにつき +2コイン。',coinClear:i=>i.rerolls*2},
   {id:'haggler',n:'値切りの護符',e:'🏷️',d:'ショップの試薬が 3コイン引き。',shopDiscount:3},
+  {id:'bazaar',n:'行商人の鈴',e:'🔔',d:'ショップの品揃え更新コストが半額になる。',shopRerollMult:0.5},
   {id:'twilightmirror',n:'黄昏の鏡',e:'🪞',d:'投入温存ボーナスのコインが ×2。',overshootMult:2},
-  {id:'compass',n:'測定の天秤',e:'⚖️',d:'各工程の目標純度が 20%減る。',targetMult:0.8},
   {id:'satchel',n:'素材袋',e:'🎒',d:'1工程に投入できる試薬が +3枚。',placeBonus:3},
   {id:'incinerator',n:'焼却炉',e:'🗑️',d:'ショップでの試薬の廃棄コストが半額になる。',removeMult:0.5},
   {id:'purifier',n:'濾過器',e:'🧽',d:'各工程の開始時、永続不純物を1枚まで自動で取り除く。',cleanse:1},
+  /* --- 諸刃の錬金器具（高効果だがデメリットあり）--- */
+  {id:'forbidden',n:'禁断の賢者の石',e:'💀',d:'最終純度が ×1.5。ただし手札が −1枚。',totalMult:1.5,handBonus:-1},
+  {id:'overfurnace',n:'過負荷の炉',e:'🌋',d:'盤上の全試薬が +4点。ただし各工程の目標純度が 25%上がる。',tileBonus:()=>4,targetMult:1.25},
+  {id:'bloodpact',n:'血の契約',e:'🩸',d:'最終純度が ×1.7。ただし投入できる試薬が −4枚。',totalMult:1.7,placeBonus:-4},
 ];
 const RELBY = Object.fromEntries(RELICS.map(r=>[r.id,r]));
 
@@ -580,6 +627,8 @@ const IMP_TEMP = ['sludge','soot','rust','fume','leaddross'];
 const IMP_PERM = ['taint','blight'];
 function clearBase(n){ return 4 + 2*n; }   // 調合品の売却益：工程が深いほど高い
 let run, board, drawPile, hand, selected, handSize, rerolls, placeLimit, placesLeft, lastValues, phase='intro', boardRadius=2, handDealIdx=null, handLeaveIdx=null, rerollBusy=false;
+// 効果値の事前計算（rainbow等が参照する run を一時スタブして代表値を算出）
+(function(){ const saved=run; run={deck:new Array(14).fill(0)}; for(const t of CATALOG) t._ev=estimateEffect(t); run=saved; })();
 
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
 function baseTarget(n){ return Math.round(11 + 4*n + 0.95*n*n); }
@@ -667,6 +716,7 @@ function compute(){
     modB[k]=mb; relB[k]=rb;
     let r=t.base+aura[k]+s+mb+rb;
     let m=1; for(const md of mods){ if(md.cellMult)m*=md.cellMult(info); if(md.tileMult)m*=md.tileMult(t); }
+    for(const nk of filled){ const nd=BYID[board.get(nk).id]; if(nd.adjMult) m*=nd.adjMult; }  // 隣接タイルからの倍率
     raw[k]=r; mult[k]=m; values[k]=Math.round(r*m);
   }
   // copy tiles (水鏡など): 隣接で最も点数の高い試薬の「現在の点数」をコピー
@@ -805,7 +855,7 @@ function finishStage(){
   let modCoin=0; for(const m of mods) if(m.coinDelta) modCoin+=m.coinDelta({empty,count:board.size,distinct:colors.size,left});
   let relicCoin=0;
   for(const rel of relicList()){ if(rel.coinClear) relicCoin += (typeof rel.coinClear==='function'
-      ? rel.coinClear({score, target:run.target, coins:run.coins, empty, count:board.size, left}) : rel.coinClear); }
+      ? rel.coinClear({score, target:run.target, coins:run.coins, empty, count:board.size, left, rerolls}) : rel.coinClear); }
   const base=clearBase(run.stageNum);
   let coins=Math.max(0, base+bonus+modCoin+relicCoin);
   run.coins+=coins; run.totalScore+=score; run.stagesCleared++;
@@ -834,6 +884,7 @@ function pickCards(){
 function genShop(){ run.shopItems=pickCards(); run.shopRerollCost=3; }
 function effPrice(p){ return Math.max(1, p - sumRelic('shopDiscount')); }
 function effRemoveCost(){ const m=prodRelic('removeMult'); return Math.max(5, Math.round(run.removeCost*m)); }
+function effRerollCost(){ const m=prodRelic('shopRerollMult'); return Math.max(1, Math.round(run.shopRerollCost*m)); }
 
 /* ===================== OVERLAY PHASES ===================== */
 const overlay=document.getElementById('overlay');
@@ -912,7 +963,7 @@ function shopHTML(){
     <div class="hsub">試薬を買って調合帳を強化。買ったものは次の工程から有効。</div>
     <div class="seclabel">試薬</div><div class="shopgrid">${cards}</div>
     <div style="display:flex; justify-content:center; margin:4px 0 8px">
-      <button class="btn" data-action="shop-reroll" ${run.coins>=run.shopRerollCost?'':'disabled'}>品揃え更新 🪙${run.shopRerollCost}</button></div>
+      <button class="btn" data-action="shop-reroll" ${run.coins>=effRerollCost()?'':'disabled'}>品揃え更新 🪙${effRerollCost()}</button></div>
     <div class="seclabel">調合帳の整理</div>
     <button class="btn ghost wide rmbtn" data-action="open-remove" ${(run.coins>=effRemoveCost()&&run.deck.length>1)?'':'disabled'}>🗑️ 試薬を廃棄する　<span class="muted">🪙${effRemoveCost()}〜</span></button>
     <div class="btnrow" style="margin-top:14px">
@@ -954,7 +1005,7 @@ overlay.addEventListener('click', e=>{
   else if(a==='pick-relic'){ const id=run.relicChoices[+arg]; if(id && !run.relics.includes(id)){ run.relics.push(id); run.relicChoices=[]; setPhase('shop'); } }
   else if(a==='buy'){ const it=run.shopItems[+arg]; const p=effPrice(it.price);
     if(!it.sold && run.coins>=p){ run.coins-=p; run.deck.push(it.id); it.sold=true; overlay.innerHTML=shopHTML(); updateTopbar(); } }
-  else if(a==='shop-reroll'){ if(run.coins>=run.shopRerollCost){ run.coins-=run.shopRerollCost; run.shopRerollCost+=2; run.shopItems=pickCards(); overlay.innerHTML=shopHTML(); updateTopbar(); } }
+  else if(a==='shop-reroll'){ if(run.coins>=effRerollCost()){ run.coins-=effRerollCost(); run.shopRerollCost+=2; run.shopItems=pickCards(); overlay.innerHTML=shopHTML(); updateTopbar(); } }
   else if(a==='leave-shop'){ run.stageNum++; genStageOptions(); setPhase('select'); }
   else if(a==='restart') newRun();
 });
